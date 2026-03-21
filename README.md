@@ -9,13 +9,14 @@ An MCP (Model Context Protocol) server for [MISP](https://www.misp-project.org/)
 
 ## Features
 
-- **18 MCP Tools** - Full MISP API coverage: events, attributes, correlations, tags, exports, sightings, warninglists
-- **3 MCP Resources** - Browse attribute types, instance statistics, and available taxonomies
-- **3 MCP Prompts** - Guided workflows for IOC investigation, incident event creation, and threat reporting
-- **SSL Flexibility** - Handles self-signed certificates common in MISP deployments
-- **Export Formats** - CSV, STIX, Suricata, Snort, text, RPZ, and hash lists
-- **Bulk Operations** - Add multiple IOCs to events in a single call
-- **Correlation Engine** - Discover cross-event relationships through shared indicators
+- **36 MCP Tools** covering events, attributes, correlations, tags, exports, sightings, warninglists, objects, galaxies, feeds, organisations, and server management
+- **3 MCP Resources** for browsing attribute types, instance statistics, and available taxonomies
+- **3 MCP Prompts** for guided IOC investigation, incident event creation, and threat reporting
+- **SSL Flexibility** for self-signed certificates common in MISP deployments
+- **Export Formats** including CSV, STIX, Suricata, Snort, text, RPZ, and hash lists
+- **MITRE ATT&CK Integration** via galaxy cluster search and attachment
+- **Bulk Operations** for adding multiple IOCs to events in a single call
+- **Correlation Engine** for discovering cross-event relationships through shared indicators
 
 ## Prerequisites
 
@@ -47,6 +48,7 @@ export MISP_VERIFY_SSL=true  # Set to 'false' for self-signed certificates
 | `MISP_URL` | Yes | - | MISP instance base URL |
 | `MISP_API_KEY` | Yes | - | API authentication key |
 | `MISP_VERIFY_SSL` | No | `true` | Set `false` for self-signed certs |
+| `MISP_TIMEOUT` | No | `30` | Request timeout in seconds |
 
 ## Usage
 
@@ -63,7 +65,29 @@ Add to your Claude Desktop MCP config (`claude_desktop_config.json`):
       "env": {
         "MISP_URL": "https://misp.example.com",
         "MISP_API_KEY": "your-api-key-here",
-        "MISP_VERIFY_SSL": "true"
+        "MISP_VERIFY_SSL": "false"
+      }
+    }
+  }
+}
+```
+
+### OpenClaw
+
+Add to your `openclaw.json` MCP servers:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "misp": {
+        "command": "node",
+        "args": ["/path/to/misp-mcp/dist/index.js"],
+        "env": {
+          "MISP_URL": "https://misp.example.com",
+          "MISP_API_KEY": "your-api-key-here",
+          "MISP_VERIFY_SSL": "false"
+        }
       }
     }
   }
@@ -76,6 +100,13 @@ Add to your Claude Desktop MCP config (`claude_desktop_config.json`):
 MISP_URL=https://misp.example.com MISP_API_KEY=your-key node dist/index.js
 ```
 
+### Docker
+
+```bash
+docker build -t misp-mcp .
+docker run -e MISP_URL=https://misp.example.com -e MISP_API_KEY=your-key -e MISP_VERIFY_SSL=false misp-mcp
+```
+
 ### Development
 
 ```bash
@@ -84,7 +115,7 @@ MISP_URL=https://misp.example.com MISP_API_KEY=your-key npm run dev
 
 ## Tools Reference
 
-### Event Tools
+### Event Tools (6)
 
 | Tool | Description |
 |------|-------------|
@@ -95,7 +126,7 @@ MISP_URL=https://misp.example.com MISP_API_KEY=your-key npm run dev
 | `misp_publish_event` | Publish an event to trigger alerts to sharing partners |
 | `misp_tag_event` | Add or remove tags (TLP, MITRE ATT&CK, custom) from an event |
 
-### Attribute Tools
+### Attribute Tools (4)
 
 | Tool | Description |
 |------|-------------|
@@ -104,7 +135,7 @@ MISP_URL=https://misp.example.com MISP_API_KEY=your-key npm run dev
 | `misp_add_attributes_bulk` | Add multiple IOCs to an event in one operation |
 | `misp_delete_attribute` | Soft or hard delete an attribute |
 
-### Correlation & Intelligence Tools
+### Correlation & Intelligence Tools (3)
 
 | Tool | Description |
 |------|-------------|
@@ -112,26 +143,68 @@ MISP_URL=https://misp.example.com MISP_API_KEY=your-key npm run dev
 | `misp_get_related_events` | Discover events related through shared IOCs |
 | `misp_describe_types` | Get all available attribute types and category mappings |
 
-### Tag & Taxonomy Tools
+### Tag & Taxonomy Tools (2)
 
 | Tool | Description |
 |------|-------------|
 | `misp_list_tags` | List available tags with usage statistics |
 | `misp_search_by_tag` | Find events or attributes by tag |
 
-### Export Tools
+### Export Tools (2)
 
 | Tool | Description |
 |------|-------------|
 | `misp_export_iocs` | Export IOCs in CSV, STIX, Suricata, Snort, text, or RPZ format |
 | `misp_export_hashes` | Export file hashes (MD5, SHA1, SHA256) for HIDS integration |
 
-### Sighting & Warninglist Tools
+### Sighting & Warninglist Tools (2)
 
 | Tool | Description |
 |------|-------------|
 | `misp_add_sighting` | Report a sighting, false positive, or expiration for an IOC |
 | `misp_check_warninglists` | Check if a value appears on known benign/false positive lists |
+
+### Object Tools (4)
+
+| Tool | Description |
+|------|-------------|
+| `misp_list_object_templates` | List available MISP object templates (file, domain-ip, email, etc.) |
+| `misp_get_object_template` | Get template details with required/optional attributes |
+| `misp_add_object` | Add a structured object (grouped attributes) to an event |
+| `misp_delete_object` | Delete an object from an event |
+
+### Galaxy Tools (4)
+
+| Tool | Description |
+|------|-------------|
+| `misp_list_galaxies` | List galaxies (MITRE ATT&CK, threat actors, malware, tools, etc.) |
+| `misp_get_galaxy` | Get galaxy details with all clusters |
+| `misp_search_galaxy_clusters` | Search clusters by keyword (find ATT&CK techniques, threat actors) |
+| `misp_attach_galaxy_cluster` | Attach a cluster (ATT&CK technique, etc.) to an event or attribute |
+
+### Feed Tools (4)
+
+| Tool | Description |
+|------|-------------|
+| `misp_list_feeds` | List configured threat intel feeds |
+| `misp_toggle_feed` | Enable or disable a feed |
+| `misp_fetch_feed` | Trigger a fetch/pull from a feed |
+| `misp_cache_feed` | Cache feed data locally for correlation |
+
+### Organisation Tools (2)
+
+| Tool | Description |
+|------|-------------|
+| `misp_list_organisations` | List local and remote sharing partner organisations |
+| `misp_get_organisation` | Get organisation details |
+
+### Server & Admin Tools (3)
+
+| Tool | Description |
+|------|-------------|
+| `misp_server_status` | Get MISP version, permissions, and diagnostics |
+| `misp_list_sharing_groups` | List sharing groups for controlled distribution |
+| `misp_delete_event` | Delete a MISP event |
 
 ## Resources
 
@@ -181,6 +254,18 @@ Uses `misp_export_iocs` with format "suricata" and last "7d".
 
 Uses `misp_check_warninglists` to verify if the value is a known benign indicator.
 
+### Find MITRE ATT&CK techniques
+
+> "Search for phishing techniques in MITRE ATT&CK"
+
+Uses `misp_search_galaxy_clusters` to find relevant ATT&CK techniques, then `misp_attach_galaxy_cluster` to link them to events.
+
+### Add structured objects
+
+> "Add a file object to event 1 with filename encrypt.exe, SHA256 hash, and file size"
+
+Uses `misp_add_object` with the "file" template to create a structured group of related attributes.
+
 ## Supported Attribute Types
 
 | Type | Category | Example |
@@ -201,10 +286,13 @@ Use `misp_describe_types` for the complete list of supported types and categorie
 ## Testing
 
 ```bash
-npm test              # Run all tests
-npm run test:watch    # Watch mode
-npm run lint          # Type check
+npm test                # Unit tests (55 tests, mocked)
+npm run test:integration  # Integration tests against live MISP (27 tests)
+npm run test:watch      # Watch mode
+npm run lint            # Type check
 ```
+
+Integration tests require `MISP_URL`, `MISP_API_KEY`, and optionally `MISP_VERIFY_SSL=false` environment variables.
 
 ## Project Structure
 
@@ -225,13 +313,21 @@ misp-mcp/
       exports.ts          # Export format tools
       sightings.ts        # Sighting tools
       warninglists.ts     # Warninglist checks
+      objects.ts          # Object template & CRUD tools
+      galaxies.ts         # Galaxy & cluster tools (MITRE ATT&CK)
+      feeds.ts            # Feed management tools
+      organisations.ts    # Organisation management tools
+      servers.ts          # Server admin & sharing group tools
   tests/
     client.test.ts        # API client unit tests
     tools.test.ts         # Tool handler unit tests
+    integration.test.ts   # Live MISP API integration tests
+  Dockerfile
   package.json
   tsconfig.json
   tsup.config.ts
   vitest.config.ts
+  vitest.integration.config.ts
   README.md
 ```
 

@@ -9,6 +9,11 @@ import { registerTagTools } from "./tools/tags.js";
 import { registerExportTools } from "./tools/exports.js";
 import { registerSightingTools } from "./tools/sightings.js";
 import { registerWarninglistTools } from "./tools/warninglists.js";
+import { registerObjectTools } from "./tools/objects.js";
+import { registerGalaxyTools } from "./tools/galaxies.js";
+import { registerFeedTools } from "./tools/feeds.js";
+import { registerOrganisationTools } from "./tools/organisations.js";
+import { registerServerTools } from "./tools/servers.js";
 import { registerResources } from "./resources.js";
 import { registerPrompts } from "./prompts.js";
 
@@ -17,7 +22,7 @@ const client = new MispClient(config);
 
 const server = new McpServer({
   name: "misp-mcp",
-  version: "1.0.0",
+  version: "1.1.0",
   description:
     "MCP server for MISP threat intelligence platform - IOC lookups, event management, correlation discovery, and intelligence enrichment",
 });
@@ -35,6 +40,11 @@ registerTagTools(server, client);
 registerExportTools(server, client);
 registerSightingTools(server, client);
 registerWarninglistTools(server, client);
+registerObjectTools(server, client);
+registerGalaxyTools(server, client);
+registerFeedTools(server, client);
+registerOrganisationTools(server, client);
+registerServerTools(server, client);
 
 // Register resources and prompts
 registerResources(server, client);

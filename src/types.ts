@@ -56,7 +56,85 @@ export interface MispObject {
   timestamp: string;
   distribution: string;
   event_id: string;
-  Attribute?: MispAttribute[];
+  Attribute?: (MispAttribute & { object_relation?: string })[];
+}
+
+// MISP Object Template
+export interface MispObjectTemplate {
+  id: string;
+  uuid: string;
+  name: string;
+  description: string;
+  version: string;
+  meta_category: string;
+  ObjectTemplateElement?: Array<{
+    object_relation: string;
+    type: string;
+    description: string;
+    ui_priority: number;
+    categories: string[];
+    sane_default?: string[];
+    values_list?: string[];
+    multiple?: boolean;
+    disable_correlation?: boolean;
+  }>;
+}
+
+// MISP Feed
+export interface MispFeed {
+  id: string;
+  name: string;
+  provider: string;
+  url: string;
+  enabled: boolean;
+  source_format: string;
+  distribution: string;
+  event_id: string;
+  caching_enabled: boolean;
+}
+
+// MISP Organisation
+export interface MispOrganisation {
+  id: string;
+  name: string;
+  uuid: string;
+  description: string;
+  nationality: string;
+  sector: string;
+  type: string;
+  local: boolean;
+}
+
+// MISP Galaxy Cluster
+export interface MispGalaxyCluster {
+  id: string;
+  uuid: string;
+  type: string;
+  value: string;
+  tag_name: string;
+  description: string;
+  galaxy_id: string;
+}
+
+// MISP Sharing Group
+export interface MispSharingGroup {
+  id: string;
+  name: string;
+  description: string;
+  uuid: string;
+  releasability: string;
+  active: boolean;
+  org_count: number;
+}
+
+// MISP Server Version
+export interface MispServerVersion {
+  version: string;
+  pymisp_recommended_version: string;
+  perm_sync: boolean;
+  perm_sighting: boolean;
+  perm_galaxy_editor: boolean;
+  perm_analyst_data: boolean;
 }
 
 // MISP Tag

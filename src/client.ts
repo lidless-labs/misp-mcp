@@ -2,7 +2,14 @@ import type { MispConfig } from "./config.js";
 import type {
   MispEvent,
   MispAttribute,
+  MispObject,
   MispSighting,
+  MispObjectTemplate,
+  MispFeed,
+  MispOrganisation,
+  MispGalaxyCluster,
+  MispSharingGroup,
+  MispServerVersion,
   EventSearchResponse,
   AttributeSearchResponse,
   EventResponse,
@@ -448,6 +455,215 @@ export class MispClient {
     if (queryParts.length > 0) path += `?${queryParts.join("&")}`;
 
     return this.request("GET", path, undefined, true);
+  }
+
+  // --- Objects ---
+
+  async listObjectTemplates(): Promise<MispObjectTemplate[]> {
+    const data = await this.request<
+      Array<{ ObjectTemplate: MispObjectTemplate }>
+    >("GET", "/objectTemplates");
+    return (data || []).map((t) => t.ObjectTemplate);
+  }
+
+  async getObjectTemplate(templateId: string): Promise<MispObjectTemplate> {
+    const data = await this.request<{ ObjectTemplate: MispObjectTemplate }>(
+      "GET",
+      `/objectTemplates/view/${templateId}`
+    );
+    return data.ObjectTemplate;
+  }
+
+  async addObject(
+    eventId: string,
+    params: {
+      name: string;
+      attributes: Array<{
+        object_relation: string;
+        type: string;
+        value: string;
+        to_ids?: boolean;
+        comment?: string;
+      }>;
+      comment?: string;
+      distribution?: number;
+    }
+  ): Promise<MispObject> {
+    const body: Record<string, unknown> = {
+      name: params.name,
+      Attribute: params.attributes.map((a) => ({
+        object_relation: a.object_relation,
+        type: a.type,
+        value: a.value,
+        to_ids: a.to_ids ?? false,
+        comment: a.comment,
+      })),
+    };
+
+    if (params.comment) body.comment = params.comment;
+    if (params.distribution !== undefined)
+      body.distribution = params.distribution;
+
+    const data = await this.request<{ Object: MispObject }>(
+      "POST",
+      `/objects/add/${eventId}`,
+      body
+    );
+    return data.Object;
+  }
+
+  async deleteObject(
+    objectId: string,
+    hard = false
+  ): Promise<{ message: string }> {
+    const body = hard ? { hard: 1 } : {};
+    return this.request<{ message: string }>(
+      "POST",
+      `/objects/delete/${objectId}`,
+      body
+    );
+  }
+
+  // --- Galaxies ---
+
+  async listGalaxies(): Promise<
+    Array<{ id: string; name: string; type: string; description: string; uuid: string }>
+  > {
+    const data = await this.request<
+      Array<{ Galaxy: { id: string; name: string; type: string; description: string; uuid: string } }>
+    >("GET", "/galaxies");
+    return (data || []).map((g) => g.Galaxy);
+  }
+
+  async getGalaxy(galaxyId: string): Promise<{
+    id: string;
+    uuid: string;
+    name: string;
+    type: string;
+    description: string;
+    GalaxyCluster?: MispGalaxyCluster[];
+  }> {
+    const data = await this.request<{
+      Galaxy: { id: string; uuid: string; name: string; type: string; description: string };
+      GalaxyCluster?: MispGalaxyCluster[];
+    }>("GET", `/galaxies/view/${galaxyId}`);
+
+    return {
+      ...data.Galaxy,
+      GalaxyCluster: data.GalaxyCluster,
+    };
+  }
+
+  async searchGalaxyClusters(
+    search: string,
+    galaxyType?: string
+  ): Promise<MispGalaxyCluster[]> {
+    const body: Record<string, unknown> = {
+      searchall: search,
+    };
+    if (galaxyType) body.context = galaxyType;
+
+    const data = await this.request<
+      Array<{ GalaxyCluster: MispGalaxyCluster }>
+    >("POST", "/galaxy_clusters/restSearch", body);
+    return (data || []).map((c) => c.GalaxyCluster);
+  }
+
+  async attachGalaxyCluster(
+    targetType: "event" | "attribute",
+    targetId: string,
+    galaxyClusterId: string
+  ): Promise<unknown> {
+    return this.request(
+      "POST",
+      `/galaxies/attachCluster/${targetId}/${targetType}`,
+      { Galaxy: { target_id: galaxyClusterId } }
+    );
+  }
+
+  // --- Feeds ---
+
+  async listFeeds(): Promise<MispFeed[]> {
+    const data = await this.request<Array<{ Feed: MispFeed }>>(
+      "GET",
+      "/feeds"
+    );
+    return (data || []).map((f) => f.Feed);
+  }
+
+  async toggleFeed(
+    feedId: string,
+    enable: boolean
+  ): Promise<{ message: string }> {
+    return this.request<{ message: string }>(
+      "POST",
+      `/feeds/${enable ? "enable" : "disable"}/${feedId}`
+    );
+  }
+
+  async fetchFeed(feedId: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(
+      "GET",
+      `/feeds/fetchFromFeed/${feedId}`
+    );
+  }
+
+  async cacheFeed(feedId: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(
+      "GET",
+      `/feeds/cacheFeeds/${feedId}`
+    );
+  }
+
+  // --- Organisations ---
+
+  async listOrganisations(
+    scope: "local" | "external" | "all" = "all"
+  ): Promise<MispOrganisation[]> {
+    const data = await this.request<
+      Array<{ Organisation: MispOrganisation }>
+    >("GET", `/organisations/index/scope:${scope}`);
+    return (data || []).map((o) => o.Organisation);
+  }
+
+  async getOrganisation(orgId: string): Promise<MispOrganisation> {
+    const data = await this.request<{ Organisation: MispOrganisation }>(
+      "GET",
+      `/organisations/view/${orgId}`
+    );
+    return data.Organisation;
+  }
+
+  // --- Server ---
+
+  async getVersion(): Promise<MispServerVersion> {
+    return this.request<MispServerVersion>("GET", "/servers/getVersion");
+  }
+
+  async getServerSettings(): Promise<{ diagnostics?: unknown }> {
+    try {
+      return await this.request<{ diagnostics?: unknown }>(
+        "GET",
+        "/servers/serverSettings"
+      );
+    } catch {
+      // serverSettings may require admin; return empty on failure
+      return {};
+    }
+  }
+
+  async listSharingGroups(): Promise<MispSharingGroup[]> {
+    const data = await this.request<{
+      response: Array<{ SharingGroup: MispSharingGroup }>;
+    }>("GET", "/sharing_groups");
+    return (data.response || []).map((g) => g.SharingGroup);
+  }
+
+  async deleteEvent(eventId: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(
+      "POST",
+      `/events/delete/${eventId}`
+    );
   }
 }
 
