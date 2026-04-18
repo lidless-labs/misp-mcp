@@ -1,6 +1,6 @@
 {
   "name": "misp-mcp",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "MCP server for MISP threat intelligence platform - IOC lookups, event management, correlation discovery, and intelligence enrichment",
   "type": "module",
   "main": "dist/index.js",
@@ -43,6 +43,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
+    "undici": "^7.25.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {

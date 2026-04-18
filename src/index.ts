@@ -22,15 +22,10 @@ const client = new MispClient(config);
 
 const server = new McpServer({
   name: "misp-mcp",
-  version: "1.1.0",
+  version: "1.2.0",
   description:
     "MCP server for MISP threat intelligence platform - IOC lookups, event management, correlation discovery, and intelligence enrichment",
 });
-
-// Disable SSL verification if configured
-if (!config.verifySsl) {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-}
 
 // Register all tools
 registerEventTools(server, client);

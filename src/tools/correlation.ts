@@ -88,9 +88,15 @@ export function registerCorrelationTools(server: McpServer, client: MispClient):
     "Get events related to a specific event through shared attributes and correlations",
     {
       eventId: z.string().describe("Event ID to find related events for"),
+      maxAttributes: z.number().int().positive().optional()
+        .describe("Max number of to_ids attributes to correlate across (default 20). Higher values hit the MISP API more."),
+      perAttributeLimit: z.number().int().positive().optional()
+        .describe("Max matches to fetch per attribute value (default 100)."),
     },
-    async ({ eventId }) => {
+    async ({ eventId, maxAttributes, perAttributeLimit }) => {
       try {
+        const attrCap = maxAttributes ?? 20;
+        const matchLimit = perAttributeLimit ?? 100;
         const event = await client.getEvent(eventId);
         const eventAttributes = event.Attribute || [];
 
@@ -119,16 +125,20 @@ export function registerCorrelationTools(server: McpServer, client: MispClient):
         }
 
         // Search for attribute values across other events
-        const valuesToSearch = eventAttributes
-          .filter((a) => a.to_ids)
-          .slice(0, 20) // limit to avoid too many API calls
-          .map((a) => a.value);
+        const toIdsAttrs = eventAttributes.filter((a) => a.to_ids);
+        const truncatedAttributes = toIdsAttrs.length > attrCap;
+        const valuesToSearch = toIdsAttrs.slice(0, attrCap).map((a) => a.value);
+        let truncatedMatches = false;
 
         for (const value of valuesToSearch) {
           const matches = await client.searchAttributes({
             value,
             includeCorrelations: true,
+            limit: matchLimit,
           });
+          if (matches.length >= matchLimit) {
+            truncatedMatches = true;
+          }
 
           for (const match of matches) {
             if (match.event_id !== eventId) {
@@ -163,6 +173,12 @@ export function registerCorrelationTools(server: McpServer, client: MispClient):
                   event_info: event.info,
                   related_events: related,
                   total_related: related.length,
+                  truncated: truncatedAttributes || truncatedMatches,
+                  truncation_reason: truncatedAttributes
+                    ? `Only the first ${attrCap} of ${toIdsAttrs.length} to_ids attributes were correlated. Raise maxAttributes to scan more.`
+                    : truncatedMatches
+                    ? `At least one attribute hit the per-attribute match limit of ${matchLimit}. Raise perAttributeLimit to see more correlations.`
+                    : undefined,
                 },
                 null,
                 2

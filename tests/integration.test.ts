@@ -32,10 +32,6 @@ describeIntegration("Integration: Live MISP API", () => {
       timeout: 30000,
     };
 
-    if (!config.verifySsl) {
-      process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-    }
-
     client = new MispClient(config);
   });
 

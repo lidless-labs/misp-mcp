@@ -1,3 +1,4 @@
+import { Agent } from "undici";
 import type { MispConfig } from "./config.js";
 import type {
   MispEvent,
@@ -19,17 +20,29 @@ import type {
   StatisticsResponse,
 } from "./types.js";
 
+// Allow numeric IDs or UUIDs (and any combination of [A-Za-z0-9_-]). Reject
+// anything that could alter the URL path (slashes, query/fragment chars, etc).
+const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+function encodeId(id: string, kind = "id"): string {
+  if (!ID_PATTERN.test(id)) {
+    throw new Error(`Invalid ${kind}: ${JSON.stringify(id)}`);
+  }
+  return encodeURIComponent(id);
+}
+
 export class MispClient {
   private baseUrl: string;
   private apiKey: string;
-  private verifySsl: boolean;
   private timeout: number;
+  private dispatcher: Agent;
 
   constructor(config: MispConfig) {
     this.baseUrl = config.url;
     this.apiKey = config.apiKey;
-    this.verifySsl = config.verifySsl;
     this.timeout = config.timeout;
+    this.dispatcher = new Agent({
+      connect: { rejectUnauthorized: config.verifySsl },
+    });
   }
 
   private async request<T>(
@@ -66,6 +79,7 @@ export class MispClient {
       headers,
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
+      dispatcher: this.dispatcher,
     };
 
     let response: Response;
@@ -157,7 +171,7 @@ export class MispClient {
   async getEvent(eventId: string): Promise<MispEvent> {
     const data = await this.request<EventResponse>(
       "GET",
-      `/events/view/${eventId}`
+      `/events/view/${encodeId(eventId, "eventId")}`
     );
     return data.Event;
   }
@@ -169,7 +183,6 @@ export class MispClient {
     analysis: number;
     date?: string;
     tags?: string[];
-    published?: boolean;
   }): Promise<MispEvent> {
     const eventData: Record<string, unknown> = {
       info: params.info,
@@ -179,7 +192,6 @@ export class MispClient {
     };
 
     if (params.date) eventData.date = params.date;
-    if (params.published) eventData.published = params.published;
 
     const data = await this.request<EventResponse>("POST", "/events/add", {
       Event: eventData,
@@ -203,7 +215,6 @@ export class MispClient {
       info?: string;
       threat_level_id?: number;
       analysis?: number;
-      published?: boolean;
     }
   ): Promise<MispEvent> {
     const eventData: Record<string, unknown> = {};
@@ -211,11 +222,10 @@ export class MispClient {
     if (params.threat_level_id !== undefined)
       eventData.threat_level_id = params.threat_level_id;
     if (params.analysis !== undefined) eventData.analysis = params.analysis;
-    if (params.published !== undefined) eventData.published = params.published;
 
     const data = await this.request<EventResponse>(
       "POST",
-      `/events/edit/${eventId}`,
+      `/events/edit/${encodeId(eventId, "eventId")}`,
       { Event: eventData }
     );
     return data.Event;
@@ -224,7 +234,7 @@ export class MispClient {
   async publishEvent(eventId: string): Promise<{ message: string }> {
     return this.request<{ message: string }>(
       "POST",
-      `/events/publish/${eventId}`
+      `/events/publish/${encodeId(eventId, "eventId")}`
     );
   }
 
@@ -301,7 +311,7 @@ export class MispClient {
 
     const data = await this.request<{ Attribute: MispAttribute }>(
       "POST",
-      `/attributes/add/${eventId}`,
+      `/attributes/add/${encodeId(eventId, "eventId")}`,
       attrData
     );
 
@@ -325,7 +335,7 @@ export class MispClient {
     const body = hard ? { hard: 1 } : {};
     return this.request<{ message: string }>(
       "POST",
-      `/attributes/delete/${attributeId}`,
+      `/attributes/delete/${encodeId(attributeId, "attributeId")}`,
       body
     );
   }
@@ -368,7 +378,7 @@ export class MispClient {
     if (params.timestamp) body.timestamp = params.timestamp;
 
     const path = params.attributeId
-      ? `/sightings/add/${params.attributeId}`
+      ? `/sightings/add/${encodeId(params.attributeId, "attributeId")}`
       : "/sightings/add";
 
     const data = await this.request<{ Sighting: MispSighting }>("POST", path, body);
@@ -469,7 +479,7 @@ export class MispClient {
   async getObjectTemplate(templateId: string): Promise<MispObjectTemplate> {
     const data = await this.request<{ ObjectTemplate: MispObjectTemplate }>(
       "GET",
-      `/objectTemplates/view/${templateId}`
+      `/objectTemplates/view/${encodeId(templateId, "templateId")}`
     );
     return data.ObjectTemplate;
   }
@@ -506,7 +516,7 @@ export class MispClient {
 
     const data = await this.request<{ Object: MispObject }>(
       "POST",
-      `/objects/add/${eventId}`,
+      `/objects/add/${encodeId(eventId, "eventId")}`,
       body
     );
     return data.Object;
@@ -519,7 +529,7 @@ export class MispClient {
     const body = hard ? { hard: 1 } : {};
     return this.request<{ message: string }>(
       "POST",
-      `/objects/delete/${objectId}`,
+      `/objects/delete/${encodeId(objectId, "objectId")}`,
       body
     );
   }
@@ -546,7 +556,7 @@ export class MispClient {
     const data = await this.request<{
       Galaxy: { id: string; uuid: string; name: string; type: string; description: string };
       GalaxyCluster?: MispGalaxyCluster[];
-    }>("GET", `/galaxies/view/${galaxyId}`);
+    }>("GET", `/galaxies/view/${encodeId(galaxyId, "galaxyId")}`);
 
     return {
       ...data.Galaxy,
@@ -574,9 +584,12 @@ export class MispClient {
     targetId: string,
     galaxyClusterId: string
   ): Promise<unknown> {
+    if (!ID_PATTERN.test(galaxyClusterId)) {
+      throw new Error(`Invalid galaxyClusterId: ${JSON.stringify(galaxyClusterId)}`);
+    }
     return this.request(
       "POST",
-      `/galaxies/attachCluster/${targetId}/${targetType}`,
+      `/galaxies/attachCluster/${encodeId(targetId, "targetId")}/${targetType}`,
       { Galaxy: { target_id: galaxyClusterId } }
     );
   }
@@ -597,21 +610,21 @@ export class MispClient {
   ): Promise<{ message: string }> {
     return this.request<{ message: string }>(
       "POST",
-      `/feeds/${enable ? "enable" : "disable"}/${feedId}`
+      `/feeds/${enable ? "enable" : "disable"}/${encodeId(feedId, "feedId")}`
     );
   }
 
   async fetchFeed(feedId: string): Promise<{ message: string }> {
     return this.request<{ message: string }>(
       "GET",
-      `/feeds/fetchFromFeed/${feedId}`
+      `/feeds/fetchFromFeed/${encodeId(feedId, "feedId")}`
     );
   }
 
   async cacheFeed(feedId: string): Promise<{ message: string }> {
     return this.request<{ message: string }>(
       "GET",
-      `/feeds/cacheFeeds/${feedId}`
+      `/feeds/cacheFeeds/${encodeId(feedId, "feedId")}`
     );
   }
 
@@ -620,6 +633,7 @@ export class MispClient {
   async listOrganisations(
     scope: "local" | "external" | "all" = "all"
   ): Promise<MispOrganisation[]> {
+    // scope is constrained by the TS type above
     const data = await this.request<
       Array<{ Organisation: MispOrganisation }>
     >("GET", `/organisations/index/scope:${scope}`);
@@ -629,7 +643,7 @@ export class MispClient {
   async getOrganisation(orgId: string): Promise<MispOrganisation> {
     const data = await this.request<{ Organisation: MispOrganisation }>(
       "GET",
-      `/organisations/view/${orgId}`
+      `/organisations/view/${encodeId(orgId, "orgId")}`
     );
     return data.Organisation;
   }
@@ -646,9 +660,14 @@ export class MispClient {
         "GET",
         "/servers/serverSettings"
       );
-    } catch {
-      // serverSettings may require admin; return empty on failure
-      return {};
+    } catch (err) {
+      // serverSettings requires site-admin. If the token lacks that permission
+      // MISP returns 403; surface everything else so real failures aren't masked.
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.startsWith("Insufficient permissions") || msg.startsWith("HTTP 403")) {
+        return {};
+      }
+      throw err;
     }
   }
 
@@ -662,7 +681,7 @@ export class MispClient {
   async deleteEvent(eventId: string): Promise<{ message: string }> {
     return this.request<{ message: string }>(
       "POST",
-      `/events/delete/${eventId}`
+      `/events/delete/${encodeId(eventId, "eventId")}`
     );
   }
 }

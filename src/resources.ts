@@ -36,24 +36,21 @@ export function registerResources(server: McpServer, client: MispClient): void {
     }
   );
 
-  // Instance statistics
+  // Instance capabilities (types + categories supported by this MISP)
   server.resource(
     "statistics",
     "misp://statistics",
     {
-      description: "MISP instance statistics (event count, attribute count, organization info)",
+      description: "MISP instance capability summary (supported attribute types and categories). Use misp_search_events for actual counts.",
       mimeType: "application/json",
     },
     async () => {
-      // Get event count from a search with limit 0
-      const events = await client.searchEvents({ limit: 1 });
       const types = await client.describeTypes();
 
       const stats = {
         available_types: types.types.length,
         available_categories: types.categories.length,
-        sample_event_count: events.length,
-        note: "For full statistics, use misp_search_events with various filters",
+        note: "This resource reports capability metadata, not event totals. Use misp_search_events with date/tag filters to count events.",
       };
 
       return {

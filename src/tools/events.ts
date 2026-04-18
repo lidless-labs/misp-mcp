@@ -150,7 +150,7 @@ export function registerEventTools(server: McpServer, client: MispClient): void 
   // Create event
   server.tool(
     "misp_create_event",
-    "Create a new MISP event for documenting incidents or threat intelligence",
+    "Create a new MISP event for documenting incidents or threat intelligence. Does not publish - use misp_publish_event separately.",
     {
       info: z.string().describe("Event description/title"),
       distribution: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
@@ -161,7 +161,6 @@ export function registerEventTools(server: McpServer, client: MispClient): void 
         .describe("0=Initial, 1=Ongoing, 2=Complete"),
       date: z.string().optional().describe("Event date (YYYY-MM-DD)"),
       tags: z.array(z.string()).optional().describe("Tags to apply"),
-      published: z.boolean().optional().describe("Publish immediately"),
     },
     async (params) => {
       try {
@@ -172,7 +171,6 @@ export function registerEventTools(server: McpServer, client: MispClient): void 
           analysis: params.analysis,
           date: params.date,
           tags: params.tags,
-          published: params.published,
         });
 
         return {
@@ -208,21 +206,21 @@ export function registerEventTools(server: McpServer, client: MispClient): void 
   // Update event
   server.tool(
     "misp_update_event",
-    "Update an existing MISP event's metadata (info, threat level, analysis status, publish state)",
+    "Update an existing MISP event's metadata (info, threat level, analysis status). Publishing is separate - use misp_publish_event.",
     {
       eventId: z.string().describe("Event ID to update"),
       info: z.string().optional().describe("New event description"),
-      threatLevel: z.number().optional().describe("1=High, 2=Medium, 3=Low, 4=Undefined"),
-      analysis: z.number().optional().describe("0=Initial, 1=Ongoing, 2=Complete"),
-      published: z.boolean().optional().describe("Set published status"),
+      threatLevel: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional()
+        .describe("1=High, 2=Medium, 3=Low, 4=Undefined"),
+      analysis: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional()
+        .describe("0=Initial, 1=Ongoing, 2=Complete"),
     },
-    async ({ eventId, info, threatLevel, analysis, published }) => {
+    async ({ eventId, info, threatLevel, analysis }) => {
       try {
         const event = await client.updateEvent(eventId, {
           info,
           threat_level_id: threatLevel,
           analysis,
-          published,
         });
 
         return {
