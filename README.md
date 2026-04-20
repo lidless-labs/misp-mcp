@@ -54,14 +54,13 @@ export MISP_VERIFY_SSL=true  # Set to 'false' for self-signed certificates
 
 ### Claude Desktop
 
-Add to your Claude Desktop MCP config (`claude_desktop_config.json`):
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
 {
   "mcpServers": {
     "misp": {
-      "command": "node",
-      "args": ["/path/to/misp-mcp/dist/index.js"],
+      "command": "misp-mcp",
       "env": {
         "MISP_URL": "https://misp.example.com",
         "MISP_API_KEY": "your-api-key-here",
@@ -72,26 +71,113 @@ Add to your Claude Desktop MCP config (`claude_desktop_config.json`):
 }
 ```
 
+### Claude Code
+
+```bash
+claude mcp add misp \
+  --env MISP_URL=https://misp.example.com \
+  --env MISP_API_KEY=your-api-key-here \
+  --env MISP_VERIFY_SSL=false \
+  -- misp-mcp
+```
+
+Add `--scope user` to make it available from any directory instead of only the current project.
+
 ### OpenClaw
 
-Add to your `openclaw.json` MCP servers:
+If you're running from a source checkout instead of the npm-installed binary, point `command`/`args` at the built `dist/index.js`:
 
-```json
-{
-  "mcp": {
-    "servers": {
-      "misp": {
-        "command": "node",
-        "args": ["/path/to/misp-mcp/dist/index.js"],
-        "env": {
-          "MISP_URL": "https://misp.example.com",
-          "MISP_API_KEY": "your-api-key-here",
-          "MISP_VERIFY_SSL": "false"
-        }
-      }
-    }
+```bash
+openclaw mcp set misp '{
+  "command": "node",
+  "args": ["/absolute/path/to/misp-mcp/dist/index.js"],
+  "env": {
+    "MISP_URL": "https://misp.example.com",
+    "MISP_API_KEY": "your-api-key-here",
+    "MISP_VERIFY_SSL": "false"
   }
-}
+}'
+```
+
+Or, with the global npm install:
+
+```bash
+openclaw mcp set misp '{
+  "command": "misp-mcp",
+  "env": {
+    "MISP_URL": "https://misp.example.com",
+    "MISP_API_KEY": "your-api-key-here",
+    "MISP_VERIFY_SSL": "false"
+  }
+}'
+```
+
+Then restart the OpenClaw gateway so the new server is picked up:
+
+```bash
+systemctl --user restart openclaw-gateway
+openclaw mcp list   # confirm "misp" is registered
+```
+
+### Hermes Agent
+
+[Hermes Agent](https://github.com/NousResearch/hermes-agent) reads MCP config from `~/.hermes/config.yaml` under the `mcp_servers` key. Add an entry:
+
+```yaml
+mcp_servers:
+  misp:
+    command: "misp-mcp"
+    env:
+      MISP_URL: "https://misp.example.com"
+      MISP_API_KEY: "your-api-key-here"
+      MISP_VERIFY_SSL: "false"
+```
+
+Or, when running from a source checkout instead of the global npm install:
+
+```yaml
+mcp_servers:
+  misp:
+    command: "node"
+    args: ["/absolute/path/to/misp-mcp/dist/index.js"]
+    env:
+      MISP_URL: "https://misp.example.com"
+      MISP_API_KEY: "your-api-key-here"
+      MISP_VERIFY_SSL: "false"
+```
+
+Then reload MCP from inside a Hermes session:
+
+```
+/reload-mcp
+```
+
+### Codex CLI
+
+[Codex CLI](https://github.com/openai/codex) registers MCP servers via `codex mcp add`:
+
+```bash
+codex mcp add misp \
+  --env MISP_URL=https://misp.example.com \
+  --env MISP_API_KEY=your-api-key-here \
+  --env MISP_VERIFY_SSL=false \
+  -- misp-mcp
+```
+
+Or, when running from a source checkout:
+
+```bash
+codex mcp add misp \
+  --env MISP_URL=https://misp.example.com \
+  --env MISP_API_KEY=your-api-key-here \
+  --env MISP_VERIFY_SSL=false \
+  -- node /absolute/path/to/misp-mcp/dist/index.js
+```
+
+Codex writes the entry to `~/.codex/config.toml` under `[mcp_servers.misp]`. Verify with:
+
+```bash
+codex mcp list
 ```
 
 ### Standalone
