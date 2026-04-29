@@ -324,6 +324,7 @@ Triggers the `investigate-ioc` prompt workflow: searches for the domain, checks 
 
 ### Create an incident event
 
+<!-- content-guard: allow email -->
 > "Create a MISP event for a phishing campaign targeting our finance team. The phishing emails came from attacker@evil.com and linked to https://evil-login.com/harvest"
 
 Uses `misp_create_event` followed by `misp_add_attributes_bulk` to create a fully populated event.
