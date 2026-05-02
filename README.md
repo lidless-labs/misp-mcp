@@ -1,9 +1,17 @@
-# misp-mcp
+<p align="center">
+  <img src="docs/assets/misp-mcp-banner.jpg" alt="Watercolor threat intelligence correlation dossier for misp-mcp" width="100%" />
+</p>
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-20%2B-green.svg)](https://nodejs.org/)
-[![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.x-purple.svg)](https://modelcontextprotocol.io/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+<h1 align="center">misp-mcp</h1>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/misp-mcp"><img src="https://img.shields.io/npm/v/misp-mcp?style=flat-square&logo=npm&color=cb3837" alt="npm version" /></a>
+  <a href="https://github.com/solomonneas/misp-mcp/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/solomonneas/misp-mcp/ci.yml?branch=main&style=flat-square&label=CI&logo=github" alt="CI status" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.7-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript 5.7" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-20%2B-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js 20+" /></a>
+  <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP%20SDK-1.x-6f42c1?style=flat-square" alt="MCP SDK 1.x" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="MIT license" /></a>
+</p>
 
 An MCP (Model Context Protocol) server for [MISP](https://www.misp-project.org/) (Malware Information Sharing Platform & Threat Intelligence Sharing). Enables LLMs to perform IOC lookups, manage events, discover correlations, and export threat intelligence directly from your MISP instance.
 
