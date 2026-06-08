@@ -254,10 +254,24 @@ describe("Event Tools", () => {
         mockFetchResponse({ message: "Event published." })
       );
       const handler = handlers.get("misp_publish_event")!;
-      const result = (await handler({ eventId: "42" })) as {
+      const result = (await handler({ eventId: "42", confirm: true })) as {
         content: Array<{ type: string; text: string }>;
       };
       expect(result.content[0].text).toContain("published");
+    });
+
+    it("should refuse to publish without confirmation", async () => {
+      vi.stubGlobal(
+        "fetch",
+        mockFetchResponse({ message: "Event published." })
+      );
+      const handler = handlers.get("misp_publish_event")!;
+      const result = (await handler({ eventId: "42" })) as {
+        content: Array<{ type: string; text: string }>;
+        isError: boolean;
+      };
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("Refused");
     });
   });
 
@@ -279,8 +293,21 @@ describe("Event Tools", () => {
         eventId: "42",
         tag: "tlp:white",
         remove: true,
+        confirm: true,
       })) as { content: Array<{ type: string; text: string }> };
       expect(result.content[0].text).toContain("removed");
+    });
+
+    it("should refuse to remove a tag without confirmation", async () => {
+      vi.stubGlobal("fetch", mockFetchResponse({ saved: true }));
+      const handler = handlers.get("misp_tag_event")!;
+      const result = (await handler({
+        eventId: "42",
+        tag: "tlp:white",
+        remove: true,
+      })) as { content: Array<{ type: string; text: string }>; isError: boolean };
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("Refused");
     });
   });
 });
@@ -478,10 +505,42 @@ describe("Attribute Tools", () => {
         mockFetchResponse({ message: "Attribute deleted." })
       );
       const handler = handlers.get("misp_delete_attribute")!;
-      const result = (await handler({ attributeId: "300" })) as {
+      const result = (await handler({ attributeId: "300", confirm: true })) as {
         content: Array<{ type: string; text: string }>;
       };
       expect(result.content[0].text).toContain("deleted");
+    });
+
+    it("should refuse soft delete without confirmation", async () => {
+      vi.stubGlobal(
+        "fetch",
+        mockFetchResponse({ message: "Attribute deleted." })
+      );
+      const handler = handlers.get("misp_delete_attribute")!;
+      const result = (await handler({ attributeId: "300" })) as {
+        content: Array<{ type: string; text: string }>;
+        isError: boolean;
+      };
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("Refused");
+    });
+
+    it("should refuse hard delete without confirmHard", async () => {
+      vi.stubGlobal(
+        "fetch",
+        mockFetchResponse({ message: "Attribute deleted." })
+      );
+      const handler = handlers.get("misp_delete_attribute")!;
+      const result = (await handler({
+        attributeId: "300",
+        hard: true,
+        confirm: true,
+      })) as {
+        content: Array<{ type: string; text: string }>;
+        isError: boolean;
+      };
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("PERMANENT");
     });
   });
 });

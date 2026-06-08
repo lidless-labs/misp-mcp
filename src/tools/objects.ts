@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
+import { requireConfirmation, requireHardConfirmation } from "../guards.js";
 
 export function registerObjectTools(server: McpServer, client: MispClient): void {
   // List object templates
@@ -172,16 +173,34 @@ export function registerObjectTools(server: McpServer, client: MispClient): void
   // Delete object
   server.tool(
     "misp_delete_object",
-    "Delete a MISP object from an event",
+    "Delete a MISP object from an event. Destructive: requires confirm:true (or MISP_ALLOW_DESTRUCTIVE=true); hard delete also requires confirmHard:true.",
     {
       objectId: z.string().describe("Object ID to delete"),
       hard: z
         .boolean()
         .optional()
         .describe("Hard delete (permanent) instead of soft delete"),
+      confirm: z
+        .boolean()
+        .optional()
+        .describe("Must be true to perform this destructive deletion (unless MISP_ALLOW_DESTRUCTIVE=true)"),
+      confirmHard: z
+        .boolean()
+        .optional()
+        .describe("Must be true (in addition to confirm) to perform a permanent hard delete"),
     },
-    async ({ objectId, hard }) => {
+    async ({ objectId, hard, confirm, confirmHard }) => {
       try {
+        const guard = requireConfirmation(confirm, `deleting object ${objectId}`);
+        if (guard) return guard;
+        if (hard) {
+          const hardGuard = requireHardConfirmation(
+            confirmHard,
+            `hard-deleting object ${objectId}`
+          );
+          if (hardGuard) return hardGuard;
+        }
+
         const result = await client.deleteObject(objectId, hard);
         return {
           content: [

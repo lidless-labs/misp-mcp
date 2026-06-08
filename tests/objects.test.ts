@@ -139,8 +139,24 @@ describe("Object Tools", () => {
     it("should delete an object", async () => {
       vi.stubGlobal("fetch", mockFetch({ message: "Object deleted." }));
       const handler = handlers.get("misp_delete_object")!;
-      const result = (await handler({ objectId: "10" })) as { content: Array<{ text: string }> };
+      const result = (await handler({ objectId: "10", confirm: true })) as { content: Array<{ text: string }> };
       expect(result.content[0].text).toContain("deleted");
+    });
+
+    it("should refuse deletion without confirmation", async () => {
+      vi.stubGlobal("fetch", mockFetch({ message: "Object deleted." }));
+      const handler = handlers.get("misp_delete_object")!;
+      const result = (await handler({ objectId: "10" })) as { content: Array<{ text: string }>; isError: boolean };
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("Refused");
+    });
+
+    it("should refuse hard delete without confirmHard", async () => {
+      vi.stubGlobal("fetch", mockFetch({ message: "Object deleted." }));
+      const handler = handlers.get("misp_delete_object")!;
+      const result = (await handler({ objectId: "10", hard: true, confirm: true })) as { content: Array<{ text: string }>; isError: boolean };
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("PERMANENT");
     });
   });
 });

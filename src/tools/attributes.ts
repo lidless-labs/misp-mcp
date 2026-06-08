@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
+import { requireConfirmation, requireHardConfirmation } from "../guards.js";
 
 export function registerAttributeTools(server: McpServer, client: MispClient): void {
   // Search attributes
@@ -202,13 +203,25 @@ export function registerAttributeTools(server: McpServer, client: MispClient): v
   // Delete attribute
   server.tool(
     "misp_delete_attribute",
-    "Delete (soft or hard) an attribute from MISP",
+    "Delete (soft or hard) an attribute from MISP. Destructive: requires confirm:true (or MISP_ALLOW_DESTRUCTIVE=true); hard delete also requires confirmHard:true.",
     {
       attributeId: z.string().describe("Attribute ID to delete"),
       hard: z.boolean().optional().describe("Hard delete (permanent) instead of soft delete"),
+      confirm: z.boolean().optional().describe("Must be true to perform this destructive deletion (unless MISP_ALLOW_DESTRUCTIVE=true)"),
+      confirmHard: z.boolean().optional().describe("Must be true (in addition to confirm) to perform a permanent hard delete"),
     },
-    async ({ attributeId, hard }) => {
+    async ({ attributeId, hard, confirm, confirmHard }) => {
       try {
+        const guard = requireConfirmation(confirm, `deleting attribute ${attributeId}`);
+        if (guard) return guard;
+        if (hard) {
+          const hardGuard = requireHardConfirmation(
+            confirmHard,
+            `hard-deleting attribute ${attributeId}`
+          );
+          if (hardGuard) return hardGuard;
+        }
+
         const result = await client.deleteAttribute(attributeId, hard);
         return {
           content: [

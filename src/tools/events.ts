@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
+import { requireConfirmation } from "../guards.js";
 
 export function registerEventTools(server: McpServer, client: MispClient): void {
   // Search events
@@ -255,12 +256,16 @@ export function registerEventTools(server: McpServer, client: MispClient): void 
   // Publish event
   server.tool(
     "misp_publish_event",
-    "Publish a MISP event, triggering alerts and notifications to sharing partners",
+    "Publish a MISP event, triggering alerts and notifications to sharing partners. State-changing: requires confirm:true (or MISP_ALLOW_DESTRUCTIVE=true).",
     {
       eventId: z.string().describe("Event ID to publish"),
+      confirm: z.boolean().optional().describe("Must be true to publish (triggers alerts to sharing partners) unless MISP_ALLOW_DESTRUCTIVE=true"),
     },
-    async ({ eventId }) => {
+    async ({ eventId, confirm }) => {
       try {
+        const guard = requireConfirmation(confirm, `publishing event ${eventId}`);
+        if (guard) return guard;
+
         const result = await client.publishEvent(eventId);
         return {
           content: [
@@ -281,15 +286,19 @@ export function registerEventTools(server: McpServer, client: MispClient): void 
   // Tag event
   server.tool(
     "misp_tag_event",
-    "Add or remove a tag from a MISP event (TLP, MITRE ATT&CK, custom tags)",
+    "Add or remove a tag from a MISP event (TLP, MITRE ATT&CK, custom tags). Removing a tag is destructive and requires confirm:true (or MISP_ALLOW_DESTRUCTIVE=true).",
     {
       eventId: z.string().describe("Event ID to tag"),
       tag: z.string().describe("Tag name (e.g., tlp:white, misp-galaxy:mitre-attack-pattern)"),
       remove: z.boolean().optional().describe("Set to true to remove the tag instead of adding"),
+      confirm: z.boolean().optional().describe("Required (true) when remove is true, unless MISP_ALLOW_DESTRUCTIVE=true. Ignored when adding a tag."),
     },
-    async ({ eventId, tag, remove }) => {
+    async ({ eventId, tag, remove, confirm }) => {
       try {
         if (remove) {
+          const guard = requireConfirmation(confirm, `removing tag "${tag}" from event ${eventId}`);
+          if (guard) return guard;
+
           await client.untagEvent(eventId, tag);
           return {
             content: [

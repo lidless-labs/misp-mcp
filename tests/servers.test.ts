@@ -104,14 +104,22 @@ describe("Server Tools", () => {
     it("should delete an event", async () => {
       vi.stubGlobal("fetch", mockFetch({ message: "Event deleted." }));
       const handler = handlers.get("misp_delete_event")!;
-      const result = (await handler({ eventId: "42" })) as { content: Array<{ text: string }> };
+      const result = (await handler({ eventId: "42", confirm: true })) as { content: Array<{ text: string }> };
       expect(result.content[0].text).toContain("deleted");
+    });
+
+    it("should refuse deletion without confirmation", async () => {
+      vi.stubGlobal("fetch", mockFetch({ message: "Event deleted." }));
+      const handler = handlers.get("misp_delete_event")!;
+      const result = (await handler({ eventId: "42" })) as { content: Array<{ text: string }>; isError: boolean };
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("Refused");
     });
 
     it("should handle deletion errors", async () => {
       vi.stubGlobal("fetch", mockFetch({ message: "Event not found" }, 404));
       const handler = handlers.get("misp_delete_event")!;
-      const result = (await handler({ eventId: "99999" })) as { content: Array<{ text: string }>; isError: boolean };
+      const result = (await handler({ eventId: "99999", confirm: true })) as { content: Array<{ text: string }>; isError: boolean };
       expect(result.isError).toBe(true);
     });
   });

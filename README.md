@@ -57,6 +57,17 @@ export MISP_VERIFY_SSL=true  # Set to 'false' for self-signed certificates
 | `MISP_API_KEY` | Yes | - | API authentication key |
 | `MISP_VERIFY_SSL` | No | `true` | Set `false` for self-signed certs |
 | `MISP_TIMEOUT` | No | `30` | Request timeout in seconds |
+| `MISP_ALLOW_DESTRUCTIVE` | No | `false` | Set `true` to pre-authorize destructive tools so the per-call `confirm` flag is not required. Permanent (`hard`) deletes still require `confirmHard`. |
+
+### Destructive action safety
+
+State-changing and destructive tools are guarded and refuse to run unless explicitly confirmed:
+
+- `misp_delete_event`, `misp_delete_attribute`, `misp_delete_object`, `misp_publish_event`, and `misp_tag_event` (when `remove: true`) require `confirm: true`.
+- Setting `MISP_ALLOW_DESTRUCTIVE=true` pre-authorizes these so the `confirm` flag can be omitted (useful for trusted automation).
+- Permanent **hard** deletes (`hard: true` on `misp_delete_attribute` / `misp_delete_object`) require a **second** confirmation, `confirmHard: true`, in addition to `confirm: true`. The env opt-in does **not** bypass `confirmHard`.
+
+A guarded call returns an error (`isError: true`) with a `Refused:` message and performs no MISP request.
 
 ## Usage
 
@@ -217,8 +228,8 @@ MISP_URL=https://misp.example.com MISP_API_KEY=your-key npm run dev
 | `misp_get_event` | Get full event details including attributes, objects, galaxies, related events |
 | `misp_create_event` | Create a new event with threat level, distribution, and analysis status |
 | `misp_update_event` | Update event metadata (info, threat level, analysis, publish state) |
-| `misp_publish_event` | Publish an event to trigger alerts to sharing partners |
-| `misp_tag_event` | Add or remove tags (TLP, MITRE ATT&CK, custom) from an event |
+| `misp_publish_event` | Publish an event to trigger alerts to sharing partners (requires `confirm:true`) |
+| `misp_tag_event` | Add or remove tags (TLP, MITRE ATT&CK, custom) from an event (removal requires `confirm:true`) |
 
 ### Attribute Tools (4)
 
@@ -227,7 +238,7 @@ MISP_URL=https://misp.example.com MISP_API_KEY=your-key npm run dev
 | `misp_search_attributes` | Search IOCs across all events with type, category, and correlation filters |
 | `misp_add_attribute` | Add a single IOC to an event |
 | `misp_add_attributes_bulk` | Add multiple IOCs to an event in one operation |
-| `misp_delete_attribute` | Soft or hard delete an attribute |
+| `misp_delete_attribute` | Soft or hard delete an attribute (requires `confirm:true`; hard delete also requires `confirmHard:true`) |
 
 ### Correlation & Intelligence Tools (3)
 
@@ -265,7 +276,7 @@ MISP_URL=https://misp.example.com MISP_API_KEY=your-key npm run dev
 | `misp_list_object_templates` | List available MISP object templates (file, domain-ip, email, etc.) |
 | `misp_get_object_template` | Get template details with required/optional attributes |
 | `misp_add_object` | Add a structured object (grouped attributes) to an event |
-| `misp_delete_object` | Delete an object from an event |
+| `misp_delete_object` | Delete an object from an event (requires `confirm:true`; hard delete also requires `confirmHard:true`) |
 
 ### Galaxy Tools (4)
 
@@ -298,7 +309,7 @@ MISP_URL=https://misp.example.com MISP_API_KEY=your-key npm run dev
 |------|-------------|
 | `misp_server_status` | Get MISP version, permissions, and diagnostics |
 | `misp_list_sharing_groups` | List sharing groups for controlled distribution |
-| `misp_delete_event` | Delete a MISP event |
+| `misp_delete_event` | Delete a MISP event (requires `confirm:true`) |
 
 ## Resources
 

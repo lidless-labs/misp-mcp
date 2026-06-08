@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
+import { requireConfirmation } from "../guards.js";
 
 export function registerServerTools(
   server: McpServer,
@@ -102,12 +103,16 @@ export function registerServerTools(
   // Delete event
   server.tool(
     "misp_delete_event",
-    "Delete a MISP event (requires appropriate permissions)",
+    "Delete a MISP event (requires appropriate permissions). Destructive: requires confirm:true (or MISP_ALLOW_DESTRUCTIVE=true).",
     {
       eventId: z.string().describe("Event ID to delete"),
+      confirm: z.boolean().optional().describe("Must be true to perform this destructive deletion (unless MISP_ALLOW_DESTRUCTIVE=true)"),
     },
-    async ({ eventId }) => {
+    async ({ eventId, confirm }) => {
       try {
+        const guard = requireConfirmation(confirm, `deleting event ${eventId}`);
+        if (guard) return guard;
+
         const result = await client.deleteEvent(eventId);
         return {
           content: [
