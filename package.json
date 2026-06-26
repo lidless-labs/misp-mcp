@@ -22,11 +22,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/solomonneas/misp-mcp.git"
+    "url": "https://github.com/lidless-labs/misp-mcp.git"
   },
-  "homepage": "https://github.com/solomonneas/misp-mcp#readme",
+  "homepage": "https://github.com/lidless-labs/misp-mcp#readme",
   "bugs": {
-    "url": "https://github.com/solomonneas/misp-mcp/issues"
+    "url": "https://github.com/lidless-labs/misp-mcp/issues"
   },
   "keywords": [
     "mcp",
