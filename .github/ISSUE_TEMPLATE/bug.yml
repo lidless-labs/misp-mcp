@@ -1,0 +1,58 @@
+name: Bug report
+description: Something is broken in misp-mcp itself, such as a tool, the MISP client, a resource, a prompt, or the docs.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Which tool or command did you run, and what did you expect versus what you got?
+      placeholder: |
+        I called `misp_search_events` with `value: "203.0.113.50"` and got X.
+        I expected Y.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: misp-mcp version
+      description: The version field from package.json, or your installed npm version.
+      placeholder: 1.2.0
+    validations:
+      required: true
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      placeholder: 20.18.0
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: MCP client
+      placeholder: Claude Desktop, Claude Code, Cursor, OpenClaw, Codex CLI, etc.
+    validations:
+      required: true
+  - type: input
+    id: misp-version
+    attributes:
+      label: MISP version (if relevant)
+      placeholder: 2.4.x / 2.5.x
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Full output
+      description: Paste the full tool output and any stderr. Redact your MISP URL, API key, and any real IOCs.
+      render: shell
+    validations:
+      required: false
+  - type: checkboxes
+    id: scrub
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I have removed my MISP URL, API key, and any real IOCs, hostnames, or personal paths from this report.
+          required: true

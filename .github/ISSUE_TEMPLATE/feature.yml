@@ -1,0 +1,42 @@
+name: Feature request
+description: Suggest a new MISP tool, resource, prompt, or an improvement to an existing one.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the MISP workflow you want an agent to perform that misp-mcp does not support today.
+      placeholder: |
+        I want an agent to be able to enrich an attribute against a configured MISP module, but there is no tool for it.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed tool or change
+      description: If you have a shape in mind, sketch the tool name, inputs, and which MISP API it would call.
+      placeholder: |
+        misp_enrich_attribute(attribute_id, module) -> calls /modules/queryEnrichment
+    validations:
+      required: false
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      description: What kind of MCP surface is this?
+      options:
+        - New tool
+        - New resource
+        - New prompt
+        - Change to an existing tool/resource/prompt
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you have considered
+      description: For example, calling the MISP API directly, or using PyMISP. Why is an MCP tool the right place?
+    validations:
+      required: false
