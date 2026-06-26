@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: misp-mcp on the web
+    url: https://lidless.dev/misp-mcp
+    about: Tool reference, configuration, and usage examples. Check here before filing.
+  - name: Security report
+    url: https://github.com/lidless-labs/misp-mcp/security/policy
+    about: Do not file security issues publicly. See SECURITY.md for private reporting.
+  - name: MISP project (not misp-mcp)
+    url: https://github.com/MISP/MISP
+    about: Bugs in MISP itself, the platform misp-mcp talks to, belong upstream.
+  - name: Model Context Protocol
+    url: https://modelcontextprotocol.io/
+    about: Questions about MCP itself, clients, or the SDK.

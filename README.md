@@ -4,52 +4,76 @@
 
 <h1 align="center">misp-mcp</h1>
 
+<p align="center"><strong>Query and manage your MISP threat-intelligence platform from any MCP client.</strong></p>
+
 <p align="center">
-  <a href="https://www.npmjs.com/package/misp-mcp"><img src="https://img.shields.io/npm/v/misp-mcp?style=flat-square&logo=npm&color=cb3837" alt="npm version" /></a>
-  <a href="https://github.com/solomonneas/misp-mcp/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/solomonneas/misp-mcp/ci.yml?branch=main&style=flat-square&label=CI&logo=github" alt="CI status" /></a>
-  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.7-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript 5.7" /></a>
-  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-20%2B-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js 20+" /></a>
-  <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP%20SDK-1.x-6f42c1?style=flat-square" alt="MCP SDK 1.x" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="MIT license" /></a>
+  <a href="https://www.npmjs.com/package/misp-mcp"><img src="https://img.shields.io/npm/v/misp-mcp?style=for-the-badge&logo=npm&color=cb3837&label=npm" alt="npm version" /></a>
+  <a href="https://github.com/lidless-labs/misp-mcp/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/lidless-labs/misp-mcp/ci.yml?branch=main&style=for-the-badge&label=CI&logo=github" alt="CI status" /></a>
+  <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP-server-6f42c1?style=for-the-badge" alt="MCP server" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="MIT license" /></a>
 </p>
 
-An MCP (Model Context Protocol) server for [MISP](https://www.misp-project.org/) (Malware Information Sharing Platform & Threat Intelligence Sharing). Enables LLMs to perform IOC lookups, manage events, discover correlations, and export threat intelligence directly from your MISP instance.
+<p align="center">
+  <a href="https://lidless.dev/misp-mcp"><strong>Website &amp; docs &rarr; lidless.dev/misp-mcp</strong></a>
+</p>
 
-## Features
+misp-mcp is a [Model Context Protocol](https://modelcontextprotocol.io/) server for [MISP](https://www.misp-project.org/), the open-source threat-intelligence sharing platform. It lets an LLM client such as Claude run IOC lookups, manage events, discover cross-event correlations, and export indicators directly against your own MISP instance. Unlike a generic HTTP wrapper, it ships 36 purpose-built tools, MISP-aware resources and prompts, and a confirmation gate that refuses destructive writes (delete, publish, untag) unless you explicitly approve them.
 
-- **36 MCP Tools** covering events, attributes, correlations, tags, exports, sightings, warninglists, objects, galaxies, feeds, organisations, and server management
-- **3 MCP Resources** for browsing attribute types, instance statistics, and available taxonomies
-- **3 MCP Prompts** for guided IOC investigation, incident event creation, and threat reporting
-- **SSL Flexibility** for self-signed certificates common in MISP deployments
-- **Export Formats** including CSV, STIX, Suricata, Snort, text, RPZ, and hash lists
-- **MITRE ATT&CK Integration** via galaxy cluster search and attachment
-- **Bulk Operations** for adding multiple IOCs to events in a single call
-- **Correlation Engine** for discovering cross-event relationships through shared indicators
+## What it does
 
-## Prerequisites
+misp-mcp connects an AI agent to a MISP (Malware Information Sharing Platform & Threat Intelligence Sharing) instance over MISP's REST API and exposes it as Model Context Protocol tools, resources, and prompts. Point it at your MISP server with an API key and an LLM can search threat-intelligence events, look up and add indicators of compromise (IOCs), correlate indicators across events, attach MITRE ATT&CK galaxy clusters, check warninglists for false positives, and export IOCs as Suricata, Snort, STIX, CSV, RPZ, or hash lists. Read paths are safe by default; state-changing and destructive operations are guarded behind explicit confirmation flags so an agent cannot delete an event or publish to sharing partners without approval.
 
-- Node.js 20 or later
-- A running MISP instance with API access
-- MISP API key (generated from MISP UI: Administration > List Auth Keys)
+- **36 MCP tools** covering events, attributes, correlations, tags, exports, sightings, warninglists, objects, galaxies, feeds, organisations, and server administration.
+- **3 MCP resources** for browsing attribute types, instance statistics, and available taxonomies.
+- **3 MCP prompts** for guided IOC investigation, incident event creation, and threat reporting.
+- **Confirmation-gated writes** so destructive tools refuse to run without `confirm: true` (and `confirmHard: true` for permanent deletes).
+- **MITRE ATT&CK integration** via galaxy cluster search and attachment.
+- **Export formats** including CSV, STIX, Suricata, Snort, text, RPZ, and hash lists.
+- **SSL flexibility** for the self-signed certificates common in on-prem MISP deployments.
 
-## Installation
+## Quickstart
 
-```bash
-git clone https://github.com/solomonneas/misp-mcp.git
-cd misp-mcp
-npm install
-npm run build
-```
-
-## Configuration
-
-Set the following environment variables:
+No checkout required. With Node.js 20+ installed, register the published package with any MCP client. For [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
 
 ```bash
-export MISP_URL=https://misp.example.com
-export MISP_API_KEY=your-api-key-here
-export MISP_VERIFY_SSL=true  # Set to 'false' for self-signed certificates
+claude mcp add misp \
+  --env MISP_URL=https://misp.example.com \
+  --env MISP_API_KEY=your-api-key-here \
+  --env MISP_VERIFY_SSL=false \
+  -- npx -y misp-mcp
 ```
+
+Add `--scope user` to make it available from any directory instead of only the current project.
+
+### MCP client config (copy-paste)
+
+For Claude Desktop, Cursor, or any client that reads a JSON `mcpServers` block, add:
+
+```json
+{
+  "mcpServers": {
+    "misp": {
+      "command": "npx",
+      "args": ["-y", "misp-mcp"],
+      "env": {
+        "MISP_URL": "https://misp.example.com",
+        "MISP_API_KEY": "your-api-key-here",
+        "MISP_VERIFY_SSL": "false"
+      }
+    }
+  }
+}
+```
+
+Claude Desktop reads this from `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows). Restart the client after editing.
+
+### Prerequisites
+
+- Node.js 20 or later.
+- A running MISP instance with API access.
+- A MISP API key (MISP UI: Administration > List Auth Keys).
+
+### Configuration
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
@@ -69,158 +93,23 @@ State-changing and destructive tools are guarded and refuse to run unless explic
 
 A guarded call returns an error (`isError: true`) with a `Refused:` message and performs no MISP request.
 
-## Usage
+## Why not the MISP web UI or raw API?
 
-### Claude Desktop
+The MISP web UI and PyMISP are excellent for analysts working a console. misp-mcp is for the case where the operator is an LLM agent, not a human at a browser. It gives the model a typed, named tool for each common MISP operation, validates inputs with Zod, and shapes responses so a model can reason over them, rather than handing the model a raw REST endpoint and an OpenAPI dump. It also adds a guardrail layer the bare API does not: destructive operations fail closed unless the caller opts in, so an over-eager agent cannot publish or delete intelligence by accident. If you want a human-driven console, use the MISP UI. If you want PyMISP scripting, use PyMISP. Use misp-mcp when you want a chat or agent client to drive MISP safely.
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+## What misp-mcp is not
 
-```json
-{
-  "mcpServers": {
-    "misp": {
-      "command": "misp-mcp",
-      "env": {
-        "MISP_URL": "https://misp.example.com",
-        "MISP_API_KEY": "your-api-key-here",
-        "MISP_VERIFY_SSL": "false"
-      }
-    }
-  }
-}
-```
+- **Not a MISP server.** It talks to an existing MISP instance over the REST API; it does not store, host, or replace MISP.
+- **Not a general HTTP proxy.** It exposes a curated set of MISP operations as MCP tools, not arbitrary passthrough to every MISP endpoint.
+- **Not a SIEM, EDR, or alerting system.** It reads and writes threat intelligence; it does not collect logs or generate alerts on its own.
+- **Not a credential vault.** It reads `MISP_URL` and `MISP_API_KEY` from the environment; manage and rotate those keys with your own secrets tooling.
+- **Not an autonomous deleter.** Destructive and publishing actions are confirmation-gated by design.
 
-### Claude Code
+## Tools
 
-```bash
-claude mcp add misp \
-  --env MISP_URL=https://misp.example.com \
-  --env MISP_API_KEY=your-api-key-here \
-  --env MISP_VERIFY_SSL=false \
-  -- misp-mcp
-```
+Verified against the server source (36 tools, registered in `src/tools/`).
 
-Add `--scope user` to make it available from any directory instead of only the current project.
-
-### OpenClaw
-
-If you're running from a source checkout instead of the npm-installed binary, point `command`/`args` at the built `dist/index.js`:
-
-```bash
-openclaw mcp set misp '{
-  "command": "node",
-  "args": ["/absolute/path/to/misp-mcp/dist/index.js"],
-  "env": {
-    "MISP_URL": "https://misp.example.com",
-    "MISP_API_KEY": "your-api-key-here",
-    "MISP_VERIFY_SSL": "false"
-  }
-}'
-```
-
-Or, with the global npm install:
-
-```bash
-openclaw mcp set misp '{
-  "command": "misp-mcp",
-  "env": {
-    "MISP_URL": "https://misp.example.com",
-    "MISP_API_KEY": "your-api-key-here",
-    "MISP_VERIFY_SSL": "false"
-  }
-}'
-```
-
-Then restart the OpenClaw gateway so the new server is picked up:
-
-```bash
-systemctl --user restart openclaw-gateway
-openclaw mcp list   # confirm "misp" is registered
-```
-
-### Hermes Agent
-
-[Hermes Agent](https://github.com/NousResearch/hermes-agent) reads MCP config from `~/.hermes/config.yaml` under the `mcp_servers` key. Add an entry:
-
-```yaml
-mcp_servers:
-  misp:
-    command: "misp-mcp"
-    env:
-      MISP_URL: "https://misp.example.com"
-      MISP_API_KEY: "your-api-key-here"
-      MISP_VERIFY_SSL: "false"
-```
-
-Or, when running from a source checkout instead of the global npm install:
-
-```yaml
-mcp_servers:
-  misp:
-    command: "node"
-    args: ["/absolute/path/to/misp-mcp/dist/index.js"]
-    env:
-      MISP_URL: "https://misp.example.com"
-      MISP_API_KEY: "your-api-key-here"
-      MISP_VERIFY_SSL: "false"
-```
-
-Then reload MCP from inside a Hermes session:
-
-```
-/reload-mcp
-```
-
-### Codex CLI
-
-[Codex CLI](https://github.com/openai/codex) registers MCP servers via `codex mcp add`:
-
-```bash
-codex mcp add misp \
-  --env MISP_URL=https://misp.example.com \
-  --env MISP_API_KEY=your-api-key-here \
-  --env MISP_VERIFY_SSL=false \
-  -- misp-mcp
-```
-
-Or, when running from a source checkout:
-
-```bash
-codex mcp add misp \
-  --env MISP_URL=https://misp.example.com \
-  --env MISP_API_KEY=your-api-key-here \
-  --env MISP_VERIFY_SSL=false \
-  -- node /absolute/path/to/misp-mcp/dist/index.js
-```
-
-Codex writes the entry to `~/.codex/config.toml` under `[mcp_servers.misp]`. Verify with:
-
-```bash
-codex mcp list
-```
-
-### Standalone
-
-```bash
-MISP_URL=https://misp.example.com MISP_API_KEY=your-key node dist/index.js
-```
-
-### Docker
-
-```bash
-docker build -t misp-mcp .
-docker run -e MISP_URL=https://misp.example.com -e MISP_API_KEY=your-key -e MISP_VERIFY_SSL=false misp-mcp
-```
-
-### Development
-
-```bash
-MISP_URL=https://misp.example.com MISP_API_KEY=your-key npm run dev
-```
-
-## Tools Reference
-
-### Event Tools (6)
+### Event tools (6)
 
 | Tool | Description |
 |------|-------------|
@@ -231,7 +120,7 @@ MISP_URL=https://misp.example.com MISP_API_KEY=your-key npm run dev
 | `misp_publish_event` | Publish an event to trigger alerts to sharing partners (requires `confirm:true`) |
 | `misp_tag_event` | Add or remove tags (TLP, MITRE ATT&CK, custom) from an event (removal requires `confirm:true`) |
 
-### Attribute Tools (4)
+### Attribute tools (4)
 
 | Tool | Description |
 |------|-------------|
@@ -240,7 +129,7 @@ MISP_URL=https://misp.example.com MISP_API_KEY=your-key npm run dev
 | `misp_add_attributes_bulk` | Add multiple IOCs to an event in one operation |
 | `misp_delete_attribute` | Soft or hard delete an attribute (requires `confirm:true`; hard delete also requires `confirmHard:true`) |
 
-### Correlation & Intelligence Tools (3)
+### Correlation & intelligence tools (3)
 
 | Tool | Description |
 |------|-------------|
@@ -248,28 +137,28 @@ MISP_URL=https://misp.example.com MISP_API_KEY=your-key npm run dev
 | `misp_get_related_events` | Discover events related through shared IOCs |
 | `misp_describe_types` | Get all available attribute types and category mappings |
 
-### Tag & Taxonomy Tools (2)
+### Tag & taxonomy tools (2)
 
 | Tool | Description |
 |------|-------------|
 | `misp_list_tags` | List available tags with usage statistics |
 | `misp_search_by_tag` | Find events or attributes by tag |
 
-### Export Tools (2)
+### Export tools (2)
 
 | Tool | Description |
 |------|-------------|
 | `misp_export_iocs` | Export IOCs in CSV, STIX, Suricata, Snort, text, or RPZ format |
 | `misp_export_hashes` | Export file hashes (MD5, SHA1, SHA256) for HIDS integration |
 
-### Sighting & Warninglist Tools (2)
+### Sighting & warninglist tools (2)
 
 | Tool | Description |
 |------|-------------|
 | `misp_add_sighting` | Report a sighting, false positive, or expiration for an IOC |
 | `misp_check_warninglists` | Check if a value appears on known benign/false positive lists |
 
-### Object Tools (4)
+### Object tools (4)
 
 | Tool | Description |
 |------|-------------|
@@ -278,7 +167,7 @@ MISP_URL=https://misp.example.com MISP_API_KEY=your-key npm run dev
 | `misp_add_object` | Add a structured object (grouped attributes) to an event |
 | `misp_delete_object` | Delete an object from an event (requires `confirm:true`; hard delete also requires `confirmHard:true`) |
 
-### Galaxy Tools (4)
+### Galaxy tools (4)
 
 | Tool | Description |
 |------|-------------|
@@ -287,7 +176,7 @@ MISP_URL=https://misp.example.com MISP_API_KEY=your-key npm run dev
 | `misp_search_galaxy_clusters` | Search clusters by keyword (find ATT&CK techniques, threat actors) |
 | `misp_attach_galaxy_cluster` | Attach a cluster (ATT&CK technique, etc.) to an event or attribute |
 
-### Feed Tools (4)
+### Feed tools (4)
 
 | Tool | Description |
 |------|-------------|
@@ -296,14 +185,14 @@ MISP_URL=https://misp.example.com MISP_API_KEY=your-key npm run dev
 | `misp_fetch_feed` | Trigger a fetch/pull from a feed |
 | `misp_cache_feed` | Cache feed data locally for correlation |
 
-### Organisation Tools (2)
+### Organisation tools (2)
 
 | Tool | Description |
 |------|-------------|
 | `misp_list_organisations` | List local and remote sharing partner organisations |
 | `misp_get_organisation` | Get organisation details |
 
-### Server & Admin Tools (3)
+### Server & admin tools (3)
 
 | Tool | Description |
 |------|-------------|
@@ -327,7 +216,7 @@ MISP_URL=https://misp.example.com MISP_API_KEY=your-key npm run dev
 | `create-incident-event` | Guided event creation from an incident description with IOC ingestion |
 | `threat-report` | Generate a threat intelligence report from MISP data |
 
-## Usage Examples
+## Usage examples
 
 ### Search for an IOC
 
@@ -337,14 +226,14 @@ Uses `misp_search_events` and `misp_search_attributes` to find all events and at
 
 ### Investigate a suspicious domain
 
-> "Investigate evil-domain.com in MISP"
+> "Investigate suspicious-domain.example in MISP"
 
 Triggers the `investigate-ioc` prompt workflow: searches for the domain, checks correlations, queries warninglists, and provides a structured threat assessment.
 
 ### Create an incident event
 
 <!-- content-guard: allow email -->
-> "Create a MISP event for a phishing campaign targeting our finance team. The phishing emails came from attacker@evil.com and linked to https://evil-login.com/harvest"
+> "Create a MISP event for a phishing campaign targeting our finance team. The phishing emails came from attacker@phish.example and linked to https://harvest.phish.example/login"
 
 Uses `misp_create_event` followed by `misp_add_attributes_bulk` to create a fully populated event.
 
@@ -356,7 +245,7 @@ Uses `misp_export_iocs` with format "suricata" and last "7d".
 
 ### Check for false positives
 
-> "Is 8.8.8.8 on any MISP warninglists?"
+> "Is 192.0.2.123 on any MISP warninglists?"
 
 Uses `misp_check_warninglists` to verify if the value is a known benign indicator.
 
@@ -372,7 +261,7 @@ Uses `misp_search_galaxy_clusters` to find relevant ATT&CK techniques, then `mis
 
 Uses `misp_add_object` with the "file" template to create a structured group of related attributes.
 
-## Supported Attribute Types
+## Supported attribute types
 
 | Type | Category | Example |
 |------|----------|---------|
@@ -389,18 +278,115 @@ Uses `misp_add_object` with the "file" template to create a structured group of 
 
 Use `misp_describe_types` for the complete list of supported types and categories.
 
+## Other clients & local development
+
+<details>
+<summary>Run from a source checkout, or wire up OpenClaw, Codex CLI, Hermes, Docker, or standalone Node.</summary>
+
+### From source
+
+```bash
+git clone https://github.com/lidless-labs/misp-mcp.git
+cd misp-mcp
+npm install
+npm run build
+```
+
+Then point any client's `command`/`args` at `node /absolute/path/to/misp-mcp/dist/index.js` instead of `npx -y misp-mcp`.
+
+### Claude Code (source checkout)
+
+```bash
+claude mcp add misp \
+  --env MISP_URL=https://misp.example.com \
+  --env MISP_API_KEY=your-api-key-here \
+  --env MISP_VERIFY_SSL=false \
+  -- node /absolute/path/to/misp-mcp/dist/index.js
+```
+
+### OpenClaw
+
+```bash
+openclaw mcp set misp '{
+  "command": "npx",
+  "args": ["-y", "misp-mcp"],
+  "env": {
+    "MISP_URL": "https://misp.example.com",
+    "MISP_API_KEY": "your-api-key-here",
+    "MISP_VERIFY_SSL": "false"
+  }
+}'
+```
+
+For a source checkout, use `"command": "node"` with `"args": ["/absolute/path/to/misp-mcp/dist/index.js"]`. Then restart the gateway and confirm registration:
+
+```bash
+systemctl --user restart openclaw-gateway
+openclaw mcp list   # confirm "misp" is registered
+```
+
+### Codex CLI
+
+```bash
+codex mcp add misp \
+  --env MISP_URL=https://misp.example.com \
+  --env MISP_API_KEY=your-api-key-here \
+  --env MISP_VERIFY_SSL=false \
+  -- npx -y misp-mcp
+```
+
+Codex writes the entry to `~/.codex/config.toml` under `[mcp_servers.misp]`. Verify with `codex mcp list`.
+
+### Hermes Agent
+
+[Hermes Agent](https://github.com/NousResearch/hermes-agent) reads MCP config from `~/.hermes/config.yaml` under `mcp_servers`:
+
+```yaml
+mcp_servers:
+  misp:
+    command: "npx"
+    args: ["-y", "misp-mcp"]
+    env:
+      MISP_URL: "https://misp.example.com"
+      MISP_API_KEY: "your-api-key-here"
+      MISP_VERIFY_SSL: "false"
+```
+
+Then `/reload-mcp` inside a Hermes session.
+
+### Docker
+
+```bash
+docker build -t misp-mcp .
+docker run -e MISP_URL=https://misp.example.com -e MISP_API_KEY=your-key -e MISP_VERIFY_SSL=false misp-mcp
+```
+
+### Standalone
+
+```bash
+MISP_URL=https://misp.example.com MISP_API_KEY=your-key node dist/index.js
+```
+
+### Development
+
+```bash
+MISP_URL=https://misp.example.com MISP_API_KEY=your-key npm run dev
+```
+
+</details>
+
 ## Testing
 
 ```bash
-npm test                # Unit tests (55 tests, mocked)
-npm run test:integration  # Integration tests against live MISP (27 tests)
-npm run test:watch      # Watch mode
-npm run lint            # Type check
+npm test                  # Unit tests (mocked)
+npm run test:integration  # Integration tests against a live MISP instance
+npm run test:watch        # Watch mode
+npm run lint              # Type check
 ```
 
 Integration tests require `MISP_URL`, `MISP_API_KEY`, and optionally `MISP_VERIFY_SSL=false` environment variables.
 
-## Project Structure
+## Project structure
 
 ```
 misp-mcp/
@@ -408,35 +394,20 @@ misp-mcp/
     index.ts              # MCP server entry point
     config.ts             # Environment config + validation
     client.ts             # MISP REST API client
+    guards.ts             # Destructive-action confirmation guards
     types.ts              # MISP API type definitions
     resources.ts          # MCP resources
     prompts.ts            # MCP prompts
-    tools/
-      events.ts           # Event CRUD tools
-      attributes.ts       # Attribute management tools
-      correlation.ts      # Correlation & intelligence tools
-      tags.ts             # Tag and taxonomy tools
-      exports.ts          # Export format tools
-      sightings.ts        # Sighting tools
-      warninglists.ts     # Warninglist checks
-      objects.ts          # Object template & CRUD tools
-      galaxies.ts         # Galaxy & cluster tools (MITRE ATT&CK)
-      feeds.ts            # Feed management tools
-      organisations.ts    # Organisation management tools
-      servers.ts          # Server admin & sharing group tools
-  tests/
-    client.test.ts        # API client unit tests
-    tools.test.ts         # Tool handler unit tests
-    integration.test.ts   # Live MISP API integration tests
+    tools/                # One module per tool family (events, attributes, ...)
+  tests/                  # Unit + integration tests
   Dockerfile
   package.json
-  tsconfig.json
-  tsup.config.ts
-  vitest.config.ts
-  vitest.integration.config.ts
-  README.md
 ```
+
+## Contributing
+
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution path and [SECURITY.md](SECURITY.md) for how to report a vulnerability privately. By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
-MIT
+[MIT](LICENSE)
