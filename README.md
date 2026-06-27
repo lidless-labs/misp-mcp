@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/misp-mcp-banner.jpg" alt="Watercolor threat intelligence correlation dossier for misp-mcp" width="100%" />
+  <img src="docs/assets/misp-mcp-banner.jpg" alt="misp-mcp banner" width="900">
 </p>
 
 <h1 align="center">misp-mcp</h1>
@@ -7,14 +7,14 @@
 <p align="center"><strong>Query and manage your MISP threat-intelligence platform from any MCP client.</strong></p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/misp-mcp"><img src="https://img.shields.io/npm/v/misp-mcp?style=for-the-badge&logo=npm&color=cb3837&label=npm" alt="npm version" /></a>
-  <a href="https://github.com/lidless-labs/misp-mcp/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/lidless-labs/misp-mcp/ci.yml?branch=main&style=for-the-badge&label=CI&logo=github" alt="CI status" /></a>
-  <a href="https://modelcontextprotocol.io/"><img src="https://img.shields.io/badge/MCP-server-6f42c1?style=for-the-badge" alt="MCP server" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="MIT license" /></a>
+  <a href="https://lidless.dev/misp-mcp"><strong>Website &amp; docs &rarr; lidless.dev/misp-mcp</strong></a>
 </p>
 
 <p align="center">
-  <a href="https://lidless.dev/misp-mcp"><strong>Website &amp; docs &rarr; lidless.dev/misp-mcp</strong></a>
+  <img src="https://img.shields.io/npm/v/misp-mcp?style=for-the-badge&logo=npm&label=npm" alt="npm version">
+  <img src="https://img.shields.io/github/actions/workflow/status/lidless-labs/misp-mcp/ci.yml?branch=main&style=for-the-badge&label=ci" alt="CI">
+  <img src="https://img.shields.io/badge/MCP-server-8A2BE2?style=for-the-badge" alt="MCP server">
+  <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="MIT license">
 </p>
 
 misp-mcp is a [Model Context Protocol](https://modelcontextprotocol.io/) server for [MISP](https://www.misp-project.org/), the open-source threat-intelligence sharing platform. It lets an LLM client such as Claude run IOC lookups, manage events, discover cross-event correlations, and export indicators directly against your own MISP instance. Unlike a generic HTTP wrapper, it ships 36 purpose-built tools, MISP-aware resources and prompts, and a confirmation gate that refuses destructive writes (delete, publish, untag) unless you explicitly approve them.
@@ -92,18 +92,6 @@ State-changing and destructive tools are guarded and refuse to run unless explic
 - Permanent **hard** deletes (`hard: true` on `misp_delete_attribute` / `misp_delete_object`) require a **second** confirmation, `confirmHard: true`, in addition to `confirm: true`. The env opt-in does **not** bypass `confirmHard`.
 
 A guarded call returns an error (`isError: true`) with a `Refused:` message and performs no MISP request.
-
-## Why not the MISP web UI or raw API?
-
-The MISP web UI and PyMISP are excellent for analysts working a console. misp-mcp is for the case where the operator is an LLM agent, not a human at a browser. It gives the model a typed, named tool for each common MISP operation, validates inputs with Zod, and shapes responses so a model can reason over them, rather than handing the model a raw REST endpoint and an OpenAPI dump. It also adds a guardrail layer the bare API does not: destructive operations fail closed unless the caller opts in, so an over-eager agent cannot publish or delete intelligence by accident. If you want a human-driven console, use the MISP UI. If you want PyMISP scripting, use PyMISP. Use misp-mcp when you want a chat or agent client to drive MISP safely.
-
-## What misp-mcp is not
-
-- **Not a MISP server.** It talks to an existing MISP instance over the REST API; it does not store, host, or replace MISP.
-- **Not a general HTTP proxy.** It exposes a curated set of MISP operations as MCP tools, not arbitrary passthrough to every MISP endpoint.
-- **Not a SIEM, EDR, or alerting system.** It reads and writes threat intelligence; it does not collect logs or generate alerts on its own.
-- **Not a credential vault.** It reads `MISP_URL` and `MISP_API_KEY` from the environment; manage and rotate those keys with your own secrets tooling.
-- **Not an autonomous deleter.** Destructive and publishing actions are confirmation-gated by design.
 
 ## Tools
 
@@ -407,6 +395,18 @@ misp-mcp/
 ## Contributing
 
 Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution path and [SECURITY.md](SECURITY.md) for how to report a vulnerability privately. By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Why not the MISP web UI or raw API?
+
+The MISP web UI and PyMISP are excellent for analysts working a console. misp-mcp is for the case where the operator is an LLM agent, not a human at a browser. It gives the model a typed, named tool for each common MISP operation, validates inputs with Zod, and shapes responses so a model can reason over them, rather than handing the model a raw REST endpoint and an OpenAPI dump. It also adds a guardrail layer the bare API does not: destructive operations fail closed unless the caller opts in, so an over-eager agent cannot publish or delete intelligence by accident. If you want a human-driven console, use the MISP UI. If you want PyMISP scripting, use PyMISP. Use misp-mcp when you want a chat or agent client to drive MISP safely.
+
+## What misp-mcp is not
+
+- **Not a MISP server.** It talks to an existing MISP instance over the REST API; it does not store, host, or replace MISP.
+- **Not a general HTTP proxy.** It exposes a curated set of MISP operations as MCP tools, not arbitrary passthrough to every MISP endpoint.
+- **Not a SIEM, EDR, or alerting system.** It reads and writes threat intelligence; it does not collect logs or generate alerts on its own.
+- **Not a credential vault.** It reads `MISP_URL` and `MISP_API_KEY` from the environment; manage and rotate those keys with your own secrets tooling.
+- **Not an autonomous deleter.** Destructive and publishing actions are confirmation-gated by design.
 
 ## License
 
