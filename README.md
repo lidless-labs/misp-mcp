@@ -11,10 +11,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/npm/v/misp-mcp?style=for-the-badge&logo=npm&label=npm" alt="npm version">
-  <img src="https://img.shields.io/github/actions/workflow/status/lidless-labs/misp-mcp/ci.yml?branch=main&style=for-the-badge&label=ci" alt="CI">
-  <img src="https://img.shields.io/badge/MCP-server-8A2BE2?style=for-the-badge" alt="MCP server">
-  <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="MIT license">
+  <img src="https://shieldcn.dev/npm/misp-mcp.svg" alt="npm version">
+  <img src="https://shieldcn.dev/github/ci/lidless-labs/misp-mcp.svg?branch=main&workflow=ci.yml" alt="CI">
+  <img src="https://shieldcn.dev/badge/MCP-server-8A2BE2.svg" alt="MCP server">
+  <img src="https://shieldcn.dev/badge/license-MIT-green.svg" alt="MIT license">
 </p>
 
 misp-mcp is a [Model Context Protocol](https://modelcontextprotocol.io/) server for [MISP](https://www.misp-project.org/), the open-source threat-intelligence sharing platform. It lets an LLM client such as Claude run IOC lookups, manage events, discover cross-event correlations, and export indicators directly against your own MISP instance. Unlike a generic HTTP wrapper, it ships 36 purpose-built tools, MISP-aware resources and prompts, and a confirmation gate that refuses destructive writes (delete, publish, untag) unless you explicitly approve them.
