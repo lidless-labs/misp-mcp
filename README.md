@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/misp-mcp-banner.jpg" alt="misp-mcp banner" width="900">
+  <img src="docs/assets/misp-mcp-social-preview.jpg" alt="misp-mcp banner" width="900">
 </p>
 
 <h1 align="center">misp-mcp</h1>
@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <img src="https://shieldcn.dev/npm/misp-mcp.svg" alt="npm version">
   <img src="https://shieldcn.dev/github/ci/lidless-labs/misp-mcp.svg?branch=main&workflow=ci.yml" alt="CI">
+  <img src="https://shieldcn.dev/npm/misp-mcp.svg" alt="npm version">
   <img src="https://shieldcn.dev/badge/MCP-server-8A2BE2.svg" alt="MCP server">
   <img src="https://shieldcn.dev/badge/license-MIT-green.svg" alt="MIT license">
 </p>
