@@ -77,9 +77,9 @@ describe("mispctrl CLI", () => {
     expect(HELP).toContain("mispctrl - MISP threat-intelligence control CLI");
     expect(HELP).toContain("alias: mispctl");
     expect(packageJson.bin).toMatchObject({
-      mispctrl: "dist/cli.js",
-      mispctl: "dist/cli.js",
-      "misp-mcp": "dist/mcp-bin.js",
+      mispctrl: "./dist/cli.js",
+      mispctl: "./dist/cli.js",
+      "misp-mcp": "./dist/mcp-bin.js",
     });
   });
 
