@@ -1,13 +1,13 @@
 {
   "name": "misp-mcp",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "MCP server for MISP threat intelligence platform - IOC lookups, event management, correlation discovery, and intelligence enrichment",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "mispctrl": "dist/cli.js",
-    "mispctl": "dist/cli.js",
-    "misp-mcp": "dist/mcp-bin.js"
+    "mispctrl": "./dist/cli.js",
+    "mispctl": "./dist/cli.js",
+    "misp-mcp": "./dist/mcp-bin.js"
   },
   "scripts": {
     "build": "tsup",
