@@ -45,6 +45,17 @@ claude mcp add misp \
 
 Add `--scope user` to make it available from any directory instead of only the current project.
 
+Before wiring a client, verify that the package can reach MISP with the same environment:
+
+```bash
+MISP_URL=https://misp.example.com \
+MISP_API_KEY=your-api-key-here \
+MISP_VERIFY_SSL=false \
+npx -p misp-mcp mispctrl status
+```
+
+This calls `/servers/getVersion` and prints the MISP version, recommended PyMISP version, TLS setting, and target URL. If this fails, fix the URL, API key, or TLS setting before debugging the MCP client.
+
 ### MCP client config (copy-paste)
 
 For Claude Desktop, Cursor, or any client that reads a JSON `mcpServers` block, add:
@@ -90,6 +101,7 @@ State-changing and destructive tools are guarded and refuse to run unless explic
 - `misp_delete_event`, `misp_delete_attribute`, `misp_delete_object`, `misp_publish_event`, and `misp_tag_event` (when `remove: true`) require `confirm: true`.
 - Setting `MISP_ALLOW_DESTRUCTIVE=true` pre-authorizes these so the `confirm` flag can be omitted (useful for trusted automation).
 - Permanent **hard** deletes (`hard: true` on `misp_delete_attribute` / `misp_delete_object`) require a **second** confirmation, `confirmHard: true`, in addition to `confirm: true`. The env opt-in does **not** bypass `confirmHard`.
+- Future destructive CLI commands use the same policy: `MISP_ALLOW_DESTRUCTIVE=true` plus `--confirm --destructive`, with `--confirm-hard` still required for permanent deletes.
 
 A guarded call returns an error (`isError: true`) with a `Refused:` message and performs no MISP request.
 
@@ -280,7 +292,7 @@ npm install
 npm run build
 ```
 
-Then point any client's `command`/`args` at `node /absolute/path/to/misp-mcp/dist/index.js` instead of `npx -y misp-mcp`.
+Then point any client's `command`/`args` at `node /absolute/path/to/misp-mcp/dist/mcp-bin.js` instead of `npx -y misp-mcp`.
 
 ### Claude Code (source checkout)
 
@@ -289,7 +301,7 @@ claude mcp add misp \
   --env MISP_URL=https://misp.example.com \
   --env MISP_API_KEY=your-api-key-here \
   --env MISP_VERIFY_SSL=false \
-  -- node /absolute/path/to/misp-mcp/dist/index.js
+  -- node /absolute/path/to/misp-mcp/dist/mcp-bin.js
 ```
 
 ### OpenClaw
@@ -306,7 +318,7 @@ openclaw mcp set misp '{
 }'
 ```
 
-For a source checkout, use `"command": "node"` with `"args": ["/absolute/path/to/misp-mcp/dist/index.js"]`. Then restart the gateway and confirm registration:
+For a source checkout, use `"command": "node"` with `"args": ["/absolute/path/to/misp-mcp/dist/mcp-bin.js"]`. Then restart the gateway and confirm registration:
 
 ```bash
 systemctl --user restart openclaw-gateway
@@ -352,7 +364,8 @@ docker run -e MISP_URL=https://misp.example.com -e MISP_API_KEY=your-key -e MISP
 ### Standalone
 
 ```bash
-MISP_URL=https://misp.example.com MISP_API_KEY=your-key node dist/index.js
+MISP_URL=https://misp.example.com MISP_API_KEY=your-key node dist/mcp-bin.js
+MISP_URL=https://misp.example.com MISP_API_KEY=your-key node dist/cli.js status
 ```
 
 ### Development
@@ -379,7 +392,10 @@ Integration tests require `MISP_URL`, `MISP_API_KEY`, and optionally `MISP_VERIF
 ```
 misp-mcp/
   src/
-    index.ts              # MCP server entry point
+    cli.ts                # mispctrl CLI entry point
+    mcp-bin.ts            # MCP stdio entry point
+    mcp-server.ts         # Shared MCP server factory
+    index.ts              # Library export surface
     config.ts             # Environment config + validation
     client.ts             # MISP REST API client
     guards.ts             # Destructive-action confirmation guards
