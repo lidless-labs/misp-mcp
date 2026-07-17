@@ -12,4 +12,4 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts
 COPY --from=builder /app/dist/ dist/
 ENV NODE_ENV=production
-ENTRYPOINT ["node", "dist/index.js"]
+ENTRYPOINT ["node", "dist/mcp-bin.js"]
