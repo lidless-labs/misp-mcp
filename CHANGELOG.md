@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- CI no longer carries a duplicate tag-triggered npm publish job; releases publish only through the `Publish npm` workflow (trusted publishing). The old job had no token and failed with `ENEEDAUTH` on every tag.
+- `npm test` in CI is no longer `continue-on-error`, so test failures fail the build again.
+- Repo memory owner switched from claude to codex; harness docs and Brigade config updated to match.
+
 ## [1.3.5] - 2026-07-16
 
 ### Fixed
