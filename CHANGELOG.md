@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.6] - 2026-07-17
+
+### Fixed
+- Restored Node 20 support. The undici 8 dependency requires Node 22.19+, so 1.3.4 and 1.3.5 crashed at startup (`webidl.util.markAsUncloneable is not a function`) on every Node 20 install despite the package declaring Node 20 support. undici is pinned back to ^7.28.0, which the fetch-dispatcher fix from 1.3.5 works with unchanged. `engines.node` is now an honest `>=20.18.1` (undici 7's floor). This was masked in CI because `npm test` ran with `continue-on-error`.
+
 ### Changed
 - CI no longer carries a duplicate tag-triggered npm publish job; releases publish only through the `Publish npm` workflow (trusted publishing). The old job had no token and failed with `ENEEDAUTH` on every tag.
 - `npm test` in CI is no longer `continue-on-error`, so test failures fail the build again.
@@ -44,7 +49,8 @@ Released from the `fire/mispctrl-2026-07-06` branch; merged back to main as part
 - Export formats: CSV, STIX, Suricata, Snort, text, RPZ, and hash lists. MITRE ATT&CK galaxy cluster search and attachment. Bulk attribute add.
 - Configuration via `MISP_URL`, `MISP_API_KEY`, `MISP_VERIFY_SSL`, `MISP_TIMEOUT`, and `MISP_ALLOW_DESTRUCTIVE`.
 
-[Unreleased]: https://github.com/lidless-labs/misp-mcp/compare/v1.3.5...HEAD
+[Unreleased]: https://github.com/lidless-labs/misp-mcp/compare/v1.3.6...HEAD
+[1.3.6]: https://github.com/lidless-labs/misp-mcp/compare/v1.3.5...v1.3.6
 [1.3.5]: https://github.com/lidless-labs/misp-mcp/compare/v1.3.4...v1.3.5
 [1.3.4]: https://github.com/lidless-labs/misp-mcp/compare/v1.2.0...v1.3.4
 [1.2.0]: https://github.com/lidless-labs/misp-mcp/releases/tag/v1.2.0
