@@ -1,4 +1,9 @@
-import { Agent } from "undici";
+// Use undici's own fetch, not the Node.js global fetch. The global fetch is
+// backed by the undici copy bundled into the Node runtime, and passing it a
+// dispatcher from the npm undici package fails whenever the two versions
+// disagree on the dispatcher interface (e.g. Node 22 + undici 8 rejects every
+// request with "invalid onRequestStart method" before anything hits the wire).
+import { Agent, fetch, type Response } from "undici";
 import type { MispConfig } from "./config.js";
 import type {
   MispEvent,
@@ -28,6 +33,40 @@ function encodeId(id: string, kind = "id"): string {
     throw new Error(`Invalid ${kind}: ${JSON.stringify(id)}`);
   }
   return encodeURIComponent(id);
+}
+
+// fetch wraps network failures in a generic "fetch failed" error and buries
+// the real reason (DNS, refused connection, TLS rejection, ...) in the cause
+// chain. Unwrap it so users can diagnose connectivity instead of guessing.
+function describeFetchError(err: unknown): string {
+  const parts: string[] = [];
+  const codes: string[] = [];
+  let current: unknown = err;
+  while (current instanceof Error) {
+    parts.push(current.message);
+    const code = (current as NodeJS.ErrnoException).code;
+    if (code) codes.push(code);
+    current = current.cause;
+  }
+  if (parts.length === 0) parts.push(String(err));
+
+  const detail = [...new Set(parts)].join(" -> ");
+  const allCodes = codes.join(",");
+  const lowerDetail = detail.toLowerCase();
+
+  if (
+    /CERT|SELF_SIGNED|UNABLE_TO_VERIFY|DEPTH_ZERO/.test(allCodes) ||
+    lowerDetail.includes("certificate")
+  ) {
+    return `${detail} (TLS certificate rejected; set MISP_VERIFY_SSL=false if your MISP instance uses a self-signed certificate)`;
+  }
+  if (/ENOTFOUND|EAI_AGAIN/.test(allCodes)) {
+    return `${detail} (could not resolve the MISP_URL hostname from this machine)`;
+  }
+  if (/ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|ETIMEDOUT|ECONNRESET/.test(allCodes)) {
+    return `${detail} (MISP_URL is not reachable from this machine; check the URL, port, and any firewall or proxy in between)`;
+  }
+  return detail;
 }
 
 export class MispClient {
@@ -74,23 +113,20 @@ export class MispClient {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
-    const options: RequestInit & { dispatcher?: unknown } = {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-      signal: controller.signal,
-      dispatcher: this.dispatcher,
-    };
-
     let response: Response;
     try {
-      response = await fetch(url, options);
+      response = await fetch(url, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+        dispatcher: this.dispatcher,
+      });
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
         throw new Error(`MISP API timeout after ${this.timeout}ms`);
       }
-      const message = err instanceof Error ? err.message : String(err);
-      throw new Error(`MISP API request failed: ${message}`);
+      throw new Error(`MISP API request failed: ${describeFetchError(err)}`);
     } finally {
       clearTimeout(timeoutId);
     }

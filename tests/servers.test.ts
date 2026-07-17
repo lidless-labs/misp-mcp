@@ -1,4 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { fetch } from "undici";
+
+vi.mock("undici", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("undici")>()),
+  fetch: vi.fn(),
+}));
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MispClient } from "../src/client.js";
 import { registerServerTools } from "../src/tools/servers.js";
@@ -45,7 +51,7 @@ describe("Server Tools", () => {
   describe("misp_server_status", () => {
     it("should return server version and permissions", async () => {
       let callCount = 0;
-      vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => {
+      vi.mocked(fetch).mockReset().mockImplementation(vi.fn().mockImplementation((url: string) => {
         callCount++;
         let body: unknown;
         if (url.includes("getVersion")) {
@@ -78,7 +84,7 @@ describe("Server Tools", () => {
 
   describe("misp_list_sharing_groups", () => {
     it("should list sharing groups", async () => {
-      vi.stubGlobal("fetch", mockFetch({
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({
         response: [
           { SharingGroup: { id: "1", name: "Trusted Partners", description: "Vetted sharing partners", uuid: "sg-1", releasability: "Partner orgs", active: true, org_count: 5 } },
         ],
@@ -93,7 +99,7 @@ describe("Server Tools", () => {
     });
 
     it("should handle no sharing groups", async () => {
-      vi.stubGlobal("fetch", mockFetch({ response: [] }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ response: [] }));
       const handler = handlers.get("misp_list_sharing_groups")!;
       const result = (await handler({})) as { content: Array<{ text: string }> };
       expect(result.content[0].text).toContain("No sharing groups");
@@ -102,14 +108,14 @@ describe("Server Tools", () => {
 
   describe("misp_delete_event", () => {
     it("should delete an event", async () => {
-      vi.stubGlobal("fetch", mockFetch({ message: "Event deleted." }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Event deleted." }));
       const handler = handlers.get("misp_delete_event")!;
       const result = (await handler({ eventId: "42", confirm: true })) as { content: Array<{ text: string }> };
       expect(result.content[0].text).toContain("deleted");
     });
 
     it("should refuse deletion without confirmation", async () => {
-      vi.stubGlobal("fetch", mockFetch({ message: "Event deleted." }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Event deleted." }));
       const handler = handlers.get("misp_delete_event")!;
       const result = (await handler({ eventId: "42" })) as { content: Array<{ text: string }>; isError: boolean };
       expect(result.isError).toBe(true);
@@ -117,7 +123,7 @@ describe("Server Tools", () => {
     });
 
     it("should handle deletion errors", async () => {
-      vi.stubGlobal("fetch", mockFetch({ message: "Event not found" }, 404));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Event not found" }, 404));
       const handler = handlers.get("misp_delete_event")!;
       const result = (await handler({ eventId: "99999", confirm: true })) as { content: Array<{ text: string }>; isError: boolean };
       expect(result.isError).toBe(true);

@@ -1,4 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { fetch } from "undici";
+
+vi.mock("undici", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("undici")>()),
+  fetch: vi.fn(),
+}));
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MispClient } from "../src/client.js";
 import { registerGalaxyTools } from "../src/tools/galaxies.js";
@@ -44,7 +50,7 @@ describe("Galaxy Tools", () => {
 
   describe("misp_list_galaxies", () => {
     it("should list all galaxies", async () => {
-      vi.stubGlobal("fetch", mockFetch([
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch([
         { Galaxy: { id: "39", name: "Attack Pattern", type: "mitre-attack-pattern", description: "MITRE ATT&CK patterns", uuid: "g-39" } },
         { Galaxy: { id: "57", name: "Intrusion Set", type: "mitre-intrusion-set", description: "Threat groups", uuid: "g-57" } },
         { Galaxy: { id: "58", name: "Malware", type: "mitre-malware", description: "Malware families", uuid: "g-58" } },
@@ -57,7 +63,7 @@ describe("Galaxy Tools", () => {
     });
 
     it("should filter by search term", async () => {
-      vi.stubGlobal("fetch", mockFetch([
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch([
         { Galaxy: { id: "39", name: "Attack Pattern", type: "mitre-attack-pattern", description: "MITRE ATT&CK patterns", uuid: "g-39" } },
         { Galaxy: { id: "57", name: "Intrusion Set", type: "mitre-intrusion-set", description: "Threat groups", uuid: "g-57" } },
       ]));
@@ -70,7 +76,7 @@ describe("Galaxy Tools", () => {
     });
 
     it("should filter by namespace", async () => {
-      vi.stubGlobal("fetch", mockFetch([
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch([
         { Galaxy: { id: "39", name: "Attack Pattern", type: "mitre-attack-pattern", description: "Patterns", uuid: "g-39" } },
         { Galaxy: { id: "57", name: "Intrusion Set", type: "mitre-intrusion-set", description: "Groups", uuid: "g-57" } },
       ]));
@@ -85,7 +91,7 @@ describe("Galaxy Tools", () => {
 
   describe("misp_get_galaxy", () => {
     it("should return galaxy with clusters", async () => {
-      vi.stubGlobal("fetch", mockFetch({
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({
         Galaxy: { id: "39", uuid: "g-39", name: "Attack Pattern", type: "mitre-attack-pattern", description: "MITRE ATT&CK" },
         GalaxyCluster: [
           { id: "1", uuid: "c-1", type: "mitre-attack-pattern", value: "T1566 - Phishing", tag_name: "misp-galaxy:mitre-attack-pattern=\"T1566\"", description: "Phishing technique", galaxy_id: "39" },
@@ -104,7 +110,7 @@ describe("Galaxy Tools", () => {
 
   describe("misp_search_galaxy_clusters", () => {
     it("should search clusters by keyword", async () => {
-      vi.stubGlobal("fetch", mockFetch([
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch([
         { GalaxyCluster: { id: "1", uuid: "c-1", type: "mitre-attack-pattern", value: "T1566 - Phishing", tag_name: "misp-galaxy:mitre-attack-pattern=\"T1566\"", description: "Adversaries may send phishing messages", galaxy_id: "39" } },
         { GalaxyCluster: { id: "2", uuid: "c-2", type: "mitre-attack-pattern", value: "T1566.001 - Spearphishing Attachment", tag_name: "misp-galaxy:mitre-attack-pattern=\"T1566.001\"", description: "Spearphishing with attachments", galaxy_id: "39" } },
       ]));
@@ -117,7 +123,7 @@ describe("Galaxy Tools", () => {
     });
 
     it("should handle no results", async () => {
-      vi.stubGlobal("fetch", mockFetch([]));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch([]));
       const handler = handlers.get("misp_search_galaxy_clusters")!;
       const result = (await handler({ search: "nonexistent" })) as { content: Array<{ text: string }> };
       expect(result.content[0].text).toContain("No galaxy clusters found");
@@ -126,7 +132,7 @@ describe("Galaxy Tools", () => {
 
   describe("misp_attach_galaxy_cluster", () => {
     it("should attach a cluster to an event", async () => {
-      vi.stubGlobal("fetch", mockFetch({ saved: true }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ saved: true }));
       const handler = handlers.get("misp_attach_galaxy_cluster")!;
       const result = (await handler({
         targetType: "event",
@@ -137,7 +143,7 @@ describe("Galaxy Tools", () => {
     });
 
     it("should attach a cluster to an attribute", async () => {
-      vi.stubGlobal("fetch", mockFetch({ saved: true }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ saved: true }));
       const handler = handlers.get("misp_attach_galaxy_cluster")!;
       const result = (await handler({
         targetType: "attribute",

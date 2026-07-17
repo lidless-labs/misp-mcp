@@ -1,4 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { fetch } from "undici";
+
+vi.mock("undici", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("undici")>()),
+  fetch: vi.fn(),
+}));
 import { MispClient } from "../src/client.js";
 import type { MispConfig } from "../src/config.js";
 
@@ -53,7 +59,7 @@ describe("MispClient", () => {
         ],
       };
 
-      vi.stubGlobal("fetch", mockFetch(mockResponse));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch(mockResponse));
       const events = await client.searchEvents({ value: "evil.com" });
 
       expect(events).toHaveLength(1);
@@ -69,13 +75,13 @@ describe("MispClient", () => {
     });
 
     it("should return empty array when no events found", async () => {
-      vi.stubGlobal("fetch", mockFetch({ response: [] }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ response: [] }));
       const events = await client.searchEvents({});
       expect(events).toHaveLength(0);
     });
 
     it("should pass all search parameters correctly", async () => {
-      vi.stubGlobal("fetch", mockFetch({ response: [] }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ response: [] }));
       await client.searchEvents({
         value: "10.0.0.1",
         type: "ip-src",
@@ -144,7 +150,7 @@ describe("MispClient", () => {
         },
       };
 
-      vi.stubGlobal("fetch", mockFetch(mockEvent));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch(mockEvent));
       const event = await client.getEvent("42");
 
       expect(event.id).toBe("42");
@@ -176,7 +182,7 @@ describe("MispClient", () => {
         },
       };
 
-      vi.stubGlobal("fetch", mockFetch(mockResponse));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch(mockResponse));
       const event = await client.createEvent({
         info: "New incident report",
         distribution: 0,
@@ -208,7 +214,7 @@ describe("MispClient", () => {
         },
       };
 
-      vi.stubGlobal("fetch", mockFetch(mockResponse));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch(mockResponse));
       const event = await client.updateEvent("42", {
         info: "Updated incident",
         threat_level_id: 1,
@@ -223,7 +229,7 @@ describe("MispClient", () => {
 
   describe("publishEvent", () => {
     it("should publish an event", async () => {
-      vi.stubGlobal("fetch", mockFetch({ message: "Event published." }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Event published." }));
       const result = await client.publishEvent("42");
       expect(result.message).toBe("Event published.");
     });
@@ -252,7 +258,7 @@ describe("MispClient", () => {
         },
       };
 
-      vi.stubGlobal("fetch", mockFetch(mockResponse));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch(mockResponse));
       const attrs = await client.searchAttributes({
         value: "10.0.0.1",
         type: "ip-src",
@@ -292,7 +298,7 @@ describe("MispClient", () => {
         },
       };
 
-      vi.stubGlobal("fetch", mockFetch(mockResponse));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch(mockResponse));
       const attr = await client.addAttribute("42", {
         type: "domain",
         value: "evil.com",
@@ -311,18 +317,14 @@ describe("MispClient", () => {
 
   describe("deleteAttribute", () => {
     it("should soft delete an attribute", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetch({ message: "Attribute deleted." })
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Attribute deleted." })
       );
       const result = await client.deleteAttribute("300");
       expect(result.message).toBe("Attribute deleted.");
     });
 
     it("should hard delete an attribute", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetch({ message: "Attribute permanently deleted." })
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Attribute permanently deleted." })
       );
       const result = await client.deleteAttribute("300", true);
 
@@ -350,7 +352,7 @@ describe("MispClient", () => {
         },
       };
 
-      vi.stubGlobal("fetch", mockFetch(mockResponse));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch(mockResponse));
       const types = await client.describeTypes();
 
       expect(types.types).toContain("ip-src");
@@ -367,14 +369,14 @@ describe("MispClient", () => {
         ],
       };
 
-      vi.stubGlobal("fetch", mockFetch(mockResponse));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch(mockResponse));
       const tags = await client.listTags();
       expect(tags).toHaveLength(2);
       expect(tags[0].name).toBe("tlp:white");
     });
 
     it("should search tags by name", async () => {
-      vi.stubGlobal("fetch", mockFetch({ Tag: [] }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ Tag: [] }));
       await client.listTags("mitre");
 
       const fetchCall = vi.mocked(fetch).mock.calls[0];
@@ -398,7 +400,7 @@ describe("MispClient", () => {
         },
       };
 
-      vi.stubGlobal("fetch", mockFetch(mockResponse));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch(mockResponse));
       const sighting = await client.addSighting({
         attributeId: "200",
         type: 0,
@@ -415,9 +417,7 @@ describe("MispClient", () => {
     });
 
     it("should add a sighting by value", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetch({
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({
           Sighting: {
             id: "11",
             attribute_id: "201",
@@ -456,7 +456,7 @@ describe("MispClient", () => {
         ],
       };
 
-      vi.stubGlobal("fetch", mockFetch(mockResponse));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch(mockResponse));
       const result = await client.checkWarninglists("8.8.8.8");
 
       expect(result["8.8.8.8"]).toHaveLength(1);
@@ -469,7 +469,7 @@ describe("MispClient", () => {
   describe("exportEvents", () => {
     it("should export in CSV format", async () => {
       const csvOutput = "uuid,event_id,category,type,value\nabc,42,Network activity,ip-src,10.0.0.1";
-      vi.stubGlobal("fetch", mockFetch(csvOutput));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch(csvOutput));
       const result = await client.exportEvents({ format: "csv" });
       expect(result).toContain("ip-src");
     });
@@ -484,7 +484,7 @@ describe("MispClient", () => {
   describe("exportHashes", () => {
     it("should export SHA256 hashes", async () => {
       const hashOutput = "abc123def456\n789ghi012jkl";
-      vi.stubGlobal("fetch", mockFetch(hashOutput));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch(hashOutput));
       const result = await client.exportHashes({ format: "sha256" });
       expect(result).toContain("abc123def456");
     });
@@ -517,7 +517,7 @@ describe("MispClient", () => {
         },
       ];
 
-      vi.stubGlobal("fetch", mockFetch(mockResponse));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch(mockResponse));
       const taxonomies = await client.listTaxonomies();
 
       expect(taxonomies).toHaveLength(2);
@@ -527,9 +527,7 @@ describe("MispClient", () => {
 
   describe("error handling", () => {
     it("should handle 401 unauthorized", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetch({ message: "Authentication failed" }, 401)
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Authentication failed" }, 401)
       );
       await expect(client.searchEvents({})).rejects.toThrow(
         "Invalid API key or unauthorized"
@@ -537,9 +535,7 @@ describe("MispClient", () => {
     });
 
     it("should handle 403 forbidden", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetch({ message: "Forbidden" }, 403)
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Forbidden" }, 403)
       );
       await expect(client.createEvent({
         info: "Test",
@@ -550,9 +546,7 @@ describe("MispClient", () => {
     });
 
     it("should handle 404 not found", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetch({ message: "Event not found" }, 404)
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Event not found" }, 404)
       );
       await expect(client.getEvent("99999")).rejects.toThrow(
         "Resource not found"
@@ -560,27 +554,43 @@ describe("MispClient", () => {
     });
 
     it("should handle 500 server error", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetch({ message: "Internal error" }, 500)
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Internal error" }, 500)
       );
       await expect(client.searchEvents({})).rejects.toThrow("HTTP 500");
     });
 
     it("should handle network errors", async () => {
-      vi.stubGlobal(
-        "fetch",
-        vi.fn().mockRejectedValue(new Error("ECONNREFUSED"))
+      vi.mocked(fetch).mockReset().mockImplementation(vi.fn().mockRejectedValue(new Error("ECONNREFUSED"))
       );
       await expect(client.searchEvents({})).rejects.toThrow(
         "MISP API request failed: ECONNREFUSED"
       );
     });
 
+    it("should surface the cause chain behind generic fetch failures", async () => {
+      const tlsError = new Error("self-signed certificate") as NodeJS.ErrnoException;
+      tlsError.code = "DEPTH_ZERO_SELF_SIGNED_CERT";
+      vi.mocked(fetch).mockReset().mockImplementation(
+        vi.fn().mockRejectedValue(new Error("fetch failed", { cause: tlsError }))
+      );
+      await expect(client.searchEvents({})).rejects.toThrow(
+        /fetch failed -> self-signed certificate.*MISP_VERIFY_SSL=false/
+      );
+    });
+
+    it("should hint at connectivity for unreachable hosts", async () => {
+      const connError = new Error("connect ECONNREFUSED 192.0.2.1:443") as NodeJS.ErrnoException;
+      connError.code = "ECONNREFUSED";
+      vi.mocked(fetch).mockReset().mockImplementation(
+        vi.fn().mockRejectedValue(new Error("fetch failed", { cause: connError }))
+      );
+      await expect(client.searchEvents({})).rejects.toThrow(
+        /ECONNREFUSED.*not reachable from this machine/
+      );
+    });
+
     it("should include detail in error messages", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetch({ message: "Attribute validation failed: value already exists" }, 403)
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Attribute validation failed: value already exists" }, 403)
       );
       await expect(
         client.addAttribute("42", { type: "domain", value: "evil.com" })
@@ -590,7 +600,7 @@ describe("MispClient", () => {
 
   describe("authorization header", () => {
     it("should send API key in Authorization header", async () => {
-      vi.stubGlobal("fetch", mockFetch({ response: [] }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ response: [] }));
       await client.searchEvents({});
 
       const headers = vi.mocked(fetch).mock.calls[0][1]?.headers as Record<

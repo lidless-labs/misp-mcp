@@ -1,4 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { fetch } from "undici";
+
+vi.mock("undici", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("undici")>()),
+  fetch: vi.fn(),
+}));
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MispClient } from "../src/client.js";
 import { registerFeedTools } from "../src/tools/feeds.js";
@@ -44,7 +50,7 @@ describe("Feed Tools", () => {
 
   describe("misp_list_feeds", () => {
     it("should list all feeds", async () => {
-      vi.stubGlobal("fetch", mockFetch([
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch([
         { Feed: { id: "1", name: "CIRCL OSINT", provider: "CIRCL", url: "https://www.circl.lu/doc/misp/feed-osint", enabled: true, source_format: "misp", distribution: "3", event_id: "0", caching_enabled: true } },
         { Feed: { id: "2", name: "Botvrij.eu", provider: "Botvrij", url: "https://www.botvrij.eu/data/feed-osint", enabled: false, source_format: "misp", distribution: "3", event_id: "0", caching_enabled: false } },
       ]));
@@ -57,7 +63,7 @@ describe("Feed Tools", () => {
     });
 
     it("should filter by enabled status", async () => {
-      vi.stubGlobal("fetch", mockFetch([
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch([
         { Feed: { id: "1", name: "CIRCL OSINT", provider: "CIRCL", url: "https://circl.lu", enabled: true, source_format: "misp", distribution: "3", event_id: "0", caching_enabled: true } },
         { Feed: { id: "2", name: "Botvrij.eu", provider: "Botvrij", url: "https://botvrij.eu", enabled: false, source_format: "misp", distribution: "3", event_id: "0", caching_enabled: false } },
       ]));
@@ -70,7 +76,7 @@ describe("Feed Tools", () => {
     });
 
     it("should handle no feeds", async () => {
-      vi.stubGlobal("fetch", mockFetch([]));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch([]));
       const handler = handlers.get("misp_list_feeds")!;
       const result = (await handler({})) as { content: Array<{ text: string }> };
       expect(result.content[0].text).toContain("No feeds found");
@@ -79,14 +85,14 @@ describe("Feed Tools", () => {
 
   describe("misp_toggle_feed", () => {
     it("should enable a feed", async () => {
-      vi.stubGlobal("fetch", mockFetch({ message: "Feed enabled." }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Feed enabled." }));
       const handler = handlers.get("misp_toggle_feed")!;
       const result = (await handler({ feedId: "1", enable: true })) as { content: Array<{ text: string }> };
       expect(result.content[0].text).toContain("enabled");
     });
 
     it("should disable a feed", async () => {
-      vi.stubGlobal("fetch", mockFetch({ message: "Feed disabled." }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Feed disabled." }));
       const handler = handlers.get("misp_toggle_feed")!;
       const result = (await handler({ feedId: "1", enable: false })) as { content: Array<{ text: string }> };
       expect(result.content[0].text).toContain("disabled");
@@ -95,7 +101,7 @@ describe("Feed Tools", () => {
 
   describe("misp_fetch_feed", () => {
     it("should trigger a feed fetch", async () => {
-      vi.stubGlobal("fetch", mockFetch({ message: "Feed fetch initiated." }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Feed fetch initiated." }));
       const handler = handlers.get("misp_fetch_feed")!;
       const result = (await handler({ feedId: "1" })) as { content: Array<{ text: string }> };
       expect(result.content[0].text).toContain("fetch");
@@ -104,7 +110,7 @@ describe("Feed Tools", () => {
 
   describe("misp_cache_feed", () => {
     it("should trigger feed caching", async () => {
-      vi.stubGlobal("fetch", mockFetch({ message: "Feed cache initiated." }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Feed cache initiated." }));
       const handler = handlers.get("misp_cache_feed")!;
       const result = (await handler({ feedId: "1" })) as { content: Array<{ text: string }> };
       expect(result.content[0].text).toContain("cache");
