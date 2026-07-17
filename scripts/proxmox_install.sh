@@ -92,7 +92,7 @@ pct exec "$CTID" -- bash -c "apt-get update && apt-get install -y nodejs"
 
 # Clone, configure, build
 echo -e "${YELLOW}Setting up MISP MCP...${NC}"
-pct exec "$CTID" -- bash -c "git clone https://github.com/solomonneas/misp-mcp.git /opt/misp-mcp"
+pct exec "$CTID" -- bash -c "git clone https://github.com/lidless-labs/misp-mcp.git /opt/misp-mcp"
 # Write .env via printf so the host-side values expand (a single-quoted
 # heredoc would emit the literal $MISP_*_VAL strings). The .env holds the API
 # key, so create it with a tight umask and lock it down to root afterwards.
@@ -108,7 +108,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=/opt/misp-mcp
-ExecStart=/usr/bin/node dist/index.js
+ExecStart=/usr/bin/node dist/mcp-bin.js
 Restart=on-failure
 RestartSec=10
 EnvironmentFile=/opt/misp-mcp/.env

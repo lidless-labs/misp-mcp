@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.5] - 2026-07-16
+
 ### Fixed
 - All MISP requests now go through undici's own `fetch` instead of the Node.js global fetch. Passing an npm-undici `Agent` to the runtime-bundled global fetch fails outright when the two undici versions disagree on the dispatcher interface (with undici 8 on Node 22 every request died with `fetch failed` before reaching the network), which surfaced as the server never contacting the MISP API (#2).
 - Network errors now include the underlying cause chain and a targeted hint instead of a bare `fetch failed`: TLS certificate rejections point at `MISP_VERIFY_SSL`, DNS failures report the unresolvable hostname, and refused or unreachable connections call out the URL, port, and firewall path.
@@ -17,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Maintainer-health files: `SECURITY.md` (private reporting, scope, and the API-key trust model), `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, a `CHANGELOG.md`, GitHub issue forms (`bug`, `feature`, plus a `config.yml` that disables blank issues and routes security and MISP-platform questions off-issue), and a pull request template with a no-PII / content-guard checklist.
 
+## [1.3.4] - 2026-07-08
+
+Released from the `fire/mispctrl-2026-07-06` branch; merged back to main as part of 1.3.5. Versions 1.3.0 through 1.3.3 were release-pipeline iterations and never reached npm.
+
+### Added
+- `mispctrl` CLI (alias `mispctl`) alongside the MCP server: `status` (connection/auth validation), `events list` with IOC/type/tag/org/time filters, `events get`, and an `mcp` subcommand that starts the stdio server, all sharing the same env-based configuration.
+- Container image published to GHCR.
+
+### Changed
+- The `misp-mcp` bin now starts through a dedicated MCP entry point (`dist/mcp-bin.js`); server wiring moved to `src/mcp-server.ts`.
+
 ## [1.2.0]
 
 ### Added
@@ -26,5 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export formats: CSV, STIX, Suricata, Snort, text, RPZ, and hash lists. MITRE ATT&CK galaxy cluster search and attachment. Bulk attribute add.
 - Configuration via `MISP_URL`, `MISP_API_KEY`, `MISP_VERIFY_SSL`, `MISP_TIMEOUT`, and `MISP_ALLOW_DESTRUCTIVE`.
 
-[Unreleased]: https://github.com/lidless-labs/misp-mcp/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/lidless-labs/misp-mcp/compare/v1.3.5...HEAD
+[1.3.5]: https://github.com/lidless-labs/misp-mcp/compare/v1.3.4...v1.3.5
+[1.3.4]: https://github.com/lidless-labs/misp-mcp/compare/v1.2.0...v1.3.4
 [1.2.0]: https://github.com/lidless-labs/misp-mcp/releases/tag/v1.2.0
