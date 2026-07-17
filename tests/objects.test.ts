@@ -1,4 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { fetch } from "undici";
+
+vi.mock("undici", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("undici")>()),
+  fetch: vi.fn(),
+}));
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MispClient } from "../src/client.js";
 import { registerObjectTools } from "../src/tools/objects.js";
@@ -44,7 +50,7 @@ describe("Object Tools", () => {
 
   describe("misp_list_object_templates", () => {
     it("should list object templates", async () => {
-      vi.stubGlobal("fetch", mockFetch([
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch([
         { ObjectTemplate: { id: "1", uuid: "t-1", name: "file", description: "File object", version: "24", meta_category: "file" } },
         { ObjectTemplate: { id: "2", uuid: "t-2", name: "domain-ip", description: "Domain-IP", version: "10", meta_category: "network" } },
       ]));
@@ -57,7 +63,7 @@ describe("Object Tools", () => {
     });
 
     it("should filter by search term", async () => {
-      vi.stubGlobal("fetch", mockFetch([
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch([
         { ObjectTemplate: { id: "1", uuid: "t-1", name: "file", description: "File object", version: "24", meta_category: "file" } },
         { ObjectTemplate: { id: "2", uuid: "t-2", name: "domain-ip", description: "Domain-IP", version: "10", meta_category: "network" } },
       ]));
@@ -70,7 +76,7 @@ describe("Object Tools", () => {
     });
 
     it("should respect limit", async () => {
-      vi.stubGlobal("fetch", mockFetch([
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch([
         { ObjectTemplate: { id: "1", uuid: "t-1", name: "file", description: "File", version: "1", meta_category: "file" } },
         { ObjectTemplate: { id: "2", uuid: "t-2", name: "email", description: "Email", version: "1", meta_category: "misc" } },
         { ObjectTemplate: { id: "3", uuid: "t-3", name: "url", description: "URL", version: "1", meta_category: "network" } },
@@ -85,7 +91,7 @@ describe("Object Tools", () => {
 
   describe("misp_get_object_template", () => {
     it("should return template details", async () => {
-      vi.stubGlobal("fetch", mockFetch({
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({
         ObjectTemplate: {
           id: "1", uuid: "t-1", name: "file", description: "File object",
           version: "24", meta_category: "file",
@@ -106,7 +112,7 @@ describe("Object Tools", () => {
 
   describe("misp_add_object", () => {
     it("should add an object to an event", async () => {
-      vi.stubGlobal("fetch", mockFetch({
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({
         Object: {
           id: "10", name: "file", event_id: "42", meta_category: "file",
           description: "File object", uuid: "obj-10", timestamp: "1717200000",
@@ -137,14 +143,14 @@ describe("Object Tools", () => {
 
   describe("misp_delete_object", () => {
     it("should delete an object", async () => {
-      vi.stubGlobal("fetch", mockFetch({ message: "Object deleted." }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Object deleted." }));
       const handler = handlers.get("misp_delete_object")!;
       const result = (await handler({ objectId: "10", confirm: true })) as { content: Array<{ text: string }> };
       expect(result.content[0].text).toContain("deleted");
     });
 
     it("should refuse deletion without confirmation", async () => {
-      vi.stubGlobal("fetch", mockFetch({ message: "Object deleted." }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Object deleted." }));
       const handler = handlers.get("misp_delete_object")!;
       const result = (await handler({ objectId: "10" })) as { content: Array<{ text: string }>; isError: boolean };
       expect(result.isError).toBe(true);
@@ -152,7 +158,7 @@ describe("Object Tools", () => {
     });
 
     it("should refuse hard delete without confirmHard", async () => {
-      vi.stubGlobal("fetch", mockFetch({ message: "Object deleted." }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Object deleted." }));
       const handler = handlers.get("misp_delete_object")!;
       const result = (await handler({ objectId: "10", hard: true, confirm: true })) as { content: Array<{ text: string }>; isError: boolean };
       expect(result.isError).toBe(true);

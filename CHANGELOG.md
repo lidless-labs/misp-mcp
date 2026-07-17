@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- All MISP requests now go through undici's own `fetch` instead of the Node.js global fetch. Passing an npm-undici `Agent` to the runtime-bundled global fetch fails outright when the two undici versions disagree on the dispatcher interface (with undici 8 on Node 22 every request died with `fetch failed` before reaching the network), which surfaced as the server never contacting the MISP API (#2).
+- Network errors now include the underlying cause chain and a targeted hint instead of a bare `fetch failed`: TLS certificate rejections point at `MISP_VERIFY_SSL`, DNS failures report the unresolvable hostname, and refused or unreachable connections call out the URL, port, and firewall path.
+
 ### Changed
 - README now opens with a what / why / how-it-differs lead and a copy-paste `npx -y misp-mcp` MCP client config, surfaces the website link near the top, and adds "Why not the MISP web UI or raw API?" and "What misp-mcp is not" sections. The full tool list is re-verified against the server source (36 tools, 3 resources, 3 prompts).
 

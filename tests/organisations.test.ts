@@ -1,4 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { fetch } from "undici";
+
+vi.mock("undici", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("undici")>()),
+  fetch: vi.fn(),
+}));
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MispClient } from "../src/client.js";
 import { registerOrganisationTools } from "../src/tools/organisations.js";
@@ -44,7 +50,7 @@ describe("Organisation Tools", () => {
 
   describe("misp_list_organisations", () => {
     it("should list organisations", async () => {
-      vi.stubGlobal("fetch", mockFetch([
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch([
         { Organisation: { id: "1", name: "ADMIN", uuid: "org-1", description: "Admin org", nationality: "US", sector: "Government", type: "ADMIN", local: true } },
         { Organisation: { id: "2", name: "CERT-EU", uuid: "org-2", description: "European CERT", nationality: "EU", sector: "Government", type: "CSIRT", local: false } },
       ]));
@@ -57,7 +63,7 @@ describe("Organisation Tools", () => {
     });
 
     it("should handle no organisations", async () => {
-      vi.stubGlobal("fetch", mockFetch([]));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch([]));
       const handler = handlers.get("misp_list_organisations")!;
       const result = (await handler({})) as { content: Array<{ text: string }> };
       expect(result.content[0].text).toContain("No organisations found");
@@ -66,7 +72,7 @@ describe("Organisation Tools", () => {
 
   describe("misp_get_organisation", () => {
     it("should return organisation details", async () => {
-      vi.stubGlobal("fetch", mockFetch({
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetch({
         Organisation: { id: "1", name: "ADMIN", uuid: "org-1", description: "Admin org", nationality: "US", sector: "Government", type: "ADMIN", local: true },
       }));
 
@@ -78,7 +84,7 @@ describe("Organisation Tools", () => {
     });
 
     it("should handle errors", async () => {
-      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Not found")));
+      vi.mocked(fetch).mockReset().mockImplementation(vi.fn().mockRejectedValue(new Error("Not found")));
       const handler = handlers.get("misp_get_organisation")!;
       const result = (await handler({ orgId: "999" })) as { content: Array<{ text: string }>; isError: boolean };
       expect(result.isError).toBe(true);

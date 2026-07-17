@@ -1,4 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { fetch } from "undici";
+
+vi.mock("undici", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("undici")>()),
+  fetch: vi.fn(),
+}));
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MispClient } from "../src/client.js";
 import { registerEventTools } from "../src/tools/events.js";
@@ -67,9 +73,7 @@ describe("Event Tools", () => {
 
   describe("misp_search_events", () => {
     it("should return formatted event results", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({
           response: [
             {
               Event: {
@@ -107,7 +111,7 @@ describe("Event Tools", () => {
     });
 
     it("should handle no results", async () => {
-      vi.stubGlobal("fetch", mockFetchResponse({ response: [] }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({ response: [] }));
       const handler = handlers.get("misp_search_events")!;
       const result = (await handler({})) as {
         content: Array<{ type: string; text: string }>;
@@ -116,9 +120,7 @@ describe("Event Tools", () => {
     });
 
     it("should handle errors gracefully", async () => {
-      vi.stubGlobal(
-        "fetch",
-        vi.fn().mockRejectedValue(new Error("Connection refused"))
+      vi.mocked(fetch).mockReset().mockImplementation(vi.fn().mockRejectedValue(new Error("Connection refused"))
       );
       const handler = handlers.get("misp_search_events")!;
       const result = (await handler({})) as {
@@ -132,9 +134,7 @@ describe("Event Tools", () => {
 
   describe("misp_get_event", () => {
     it("should return full event details", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({
           Event: {
             id: "42",
             uuid: "evt-42",
@@ -213,9 +213,7 @@ describe("Event Tools", () => {
 
   describe("misp_create_event", () => {
     it("should create an event and return its details", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({
           Event: {
             id: "99",
             uuid: "new-99",
@@ -249,9 +247,7 @@ describe("Event Tools", () => {
 
   describe("misp_publish_event", () => {
     it("should publish an event", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({ message: "Event published." })
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({ message: "Event published." })
       );
       const handler = handlers.get("misp_publish_event")!;
       const result = (await handler({ eventId: "42", confirm: true })) as {
@@ -261,9 +257,7 @@ describe("Event Tools", () => {
     });
 
     it("should refuse to publish without confirmation", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({ message: "Event published." })
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({ message: "Event published." })
       );
       const handler = handlers.get("misp_publish_event")!;
       const result = (await handler({ eventId: "42" })) as {
@@ -277,7 +271,7 @@ describe("Event Tools", () => {
 
   describe("misp_tag_event", () => {
     it("should add a tag", async () => {
-      vi.stubGlobal("fetch", mockFetchResponse({ saved: true }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({ saved: true }));
       const handler = handlers.get("misp_tag_event")!;
       const result = (await handler({
         eventId: "42",
@@ -287,7 +281,7 @@ describe("Event Tools", () => {
     });
 
     it("should remove a tag", async () => {
-      vi.stubGlobal("fetch", mockFetchResponse({ saved: true }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({ saved: true }));
       const handler = handlers.get("misp_tag_event")!;
       const result = (await handler({
         eventId: "42",
@@ -299,7 +293,7 @@ describe("Event Tools", () => {
     });
 
     it("should refuse to remove a tag without confirmation", async () => {
-      vi.stubGlobal("fetch", mockFetchResponse({ saved: true }));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({ saved: true }));
       const handler = handlers.get("misp_tag_event")!;
       const result = (await handler({
         eventId: "42",
@@ -325,9 +319,7 @@ describe("Attribute Tools", () => {
 
   describe("misp_search_attributes", () => {
     it("should return formatted attribute results", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({
           response: {
             Attribute: [
               {
@@ -366,9 +358,7 @@ describe("Attribute Tools", () => {
 
   describe("misp_add_attribute", () => {
     it("should add an attribute and return details", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({
           Attribute: {
             id: "300",
             event_id: "42",
@@ -403,9 +393,7 @@ describe("Attribute Tools", () => {
   describe("misp_add_attributes_bulk", () => {
     it("should add multiple attributes and report results", async () => {
       let callCount = 0;
-      vi.stubGlobal(
-        "fetch",
-        vi.fn().mockImplementation(() => {
+      vi.mocked(fetch).mockReset().mockImplementation(vi.fn().mockImplementation(() => {
           callCount++;
           return Promise.resolve({
             ok: true,
@@ -450,9 +438,7 @@ describe("Attribute Tools", () => {
 
     it("should handle partial failures in bulk add", async () => {
       let callCount = 0;
-      vi.stubGlobal(
-        "fetch",
-        vi.fn().mockImplementation(() => {
+      vi.mocked(fetch).mockReset().mockImplementation(vi.fn().mockImplementation(() => {
           callCount++;
           if (callCount === 2) {
             return Promise.resolve({
@@ -500,9 +486,7 @@ describe("Attribute Tools", () => {
 
   describe("misp_delete_attribute", () => {
     it("should delete an attribute", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({ message: "Attribute deleted." })
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({ message: "Attribute deleted." })
       );
       const handler = handlers.get("misp_delete_attribute")!;
       const result = (await handler({ attributeId: "300", confirm: true })) as {
@@ -512,9 +496,7 @@ describe("Attribute Tools", () => {
     });
 
     it("should refuse soft delete without confirmation", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({ message: "Attribute deleted." })
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({ message: "Attribute deleted." })
       );
       const handler = handlers.get("misp_delete_attribute")!;
       const result = (await handler({ attributeId: "300" })) as {
@@ -526,9 +508,7 @@ describe("Attribute Tools", () => {
     });
 
     it("should refuse hard delete without confirmHard", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({ message: "Attribute deleted." })
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({ message: "Attribute deleted." })
       );
       const handler = handlers.get("misp_delete_attribute")!;
       const result = (await handler({
@@ -557,9 +537,7 @@ describe("Correlation Tools", () => {
 
   describe("misp_correlate", () => {
     it("should aggregate correlations by event", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({
           response: {
             Attribute: [
               {
@@ -611,9 +589,7 @@ describe("Correlation Tools", () => {
     });
 
     it("should handle no correlations found", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({ response: { Attribute: [] } })
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({ response: { Attribute: [] } })
       );
       const handler = handlers.get("misp_correlate")!;
       const result = (await handler({ value: "not-found.com" })) as {
@@ -625,9 +601,7 @@ describe("Correlation Tools", () => {
 
   describe("misp_describe_types", () => {
     it("should return type information", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({
           result: {
             sane_defaults: {},
             types: ["ip-src", "domain"],
@@ -658,9 +632,7 @@ describe("Tag Tools", () => {
 
   describe("misp_list_tags", () => {
     it("should list tags with stats", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({
           Tag: [
             { id: "1", name: "tlp:white", colour: "#FFFFFF", exportable: true, event_count: "50", attribute_count: "200" },
             { id: "2", name: "tlp:green", colour: "#339900", exportable: true, event_count: "30", attribute_count: "120" },
@@ -679,9 +651,7 @@ describe("Tag Tools", () => {
     });
 
     it("should respect limit parameter", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({
           Tag: [
             { id: "1", name: "tag-1", colour: "#FFF", exportable: true },
             { id: "2", name: "tag-2", colour: "#FFF", exportable: true },
@@ -702,9 +672,7 @@ describe("Tag Tools", () => {
 
   describe("misp_search_by_tag", () => {
     it("should search events by tag", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({
           response: [
             {
               Event: {
@@ -751,9 +719,7 @@ describe("Export Tools", () => {
 
   describe("misp_export_iocs", () => {
     it("should export IOCs in CSV format", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse("uuid,event_id,type,value\nabc,42,ip-src,10.0.0.1")
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse("uuid,event_id,type,value\nabc,42,ip-src,10.0.0.1")
       );
       const handler = handlers.get("misp_export_iocs")!;
       const result = (await handler({ format: "csv" })) as {
@@ -763,7 +729,7 @@ describe("Export Tools", () => {
     });
 
     it("should handle empty exports", async () => {
-      vi.stubGlobal("fetch", mockFetchResponse(""));
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse(""));
       const handler = handlers.get("misp_export_iocs")!;
       const result = (await handler({ format: "csv" })) as {
         content: Array<{ type: string; text: string }>;
@@ -774,9 +740,7 @@ describe("Export Tools", () => {
 
   describe("misp_export_hashes", () => {
     it("should export SHA256 hashes", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse("abc123def456\n789ghi012jkl")
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse("abc123def456\n789ghi012jkl")
       );
       const handler = handlers.get("misp_export_hashes")!;
       const result = (await handler({ format: "sha256" })) as {
@@ -799,9 +763,7 @@ describe("Sighting Tools", () => {
 
   describe("misp_add_sighting", () => {
     it("should add a sighting", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({
           Sighting: {
             id: "10",
             attribute_id: "200",
@@ -850,9 +812,7 @@ describe("Warninglist Tools", () => {
 
   describe("misp_check_warninglists", () => {
     it("should report matches on warninglists", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({
           "8.8.8.8": [
             {
               id: "1",
@@ -878,9 +838,7 @@ describe("Warninglist Tools", () => {
     });
 
     it("should report no matches", async () => {
-      vi.stubGlobal(
-        "fetch",
-        mockFetchResponse({ "evil.com": [] })
+      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({ "evil.com": [] })
       );
 
       const handler = handlers.get("misp_check_warninglists")!;
