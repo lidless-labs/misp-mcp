@@ -1,7 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
-import { MAX_TAGS_PER_CALL } from "../limits.js";
+import { limitInput, MAX_TAGS_PER_CALL, moreResultsNote, pageInput } from "../limits.js";
+import { trustedText } from "../untrusted.js";
 import { ToolRegistry } from "../tool-registry.js";
 import { requireConfirmation, createMutationPolicy, type MutationPolicy } from "../guards.js";
 
@@ -27,8 +28,8 @@ export function registerEventTools(
       dateTo: z.string().optional().describe("End date (YYYY-MM-DD)"),
       last: z.string().optional().describe("Relative time (e.g., 1d, 7d, 30d, 6m)"),
       published: z.boolean().optional().describe("Only published events"),
-      limit: z.number().optional().describe("Max results (default 50)"),
-      page: z.number().optional().describe("Page number for pagination"),
+      limit: limitInput(),
+      page: pageInput(),
     },
     async (params) => {
       try {
@@ -67,12 +68,14 @@ export function registerEventTools(
           tags: (e.Tag || []).map((t) => t.name),
         }));
 
+        const note = moreResultsNote(events.length, params.limit, params.page);
         return {
           content: [
             {
               type: "text",
               text: JSON.stringify(summary, null, 2),
             },
+            ...(note ? [trustedText(note)] : []),
           ],
         };
       } catch (err) {

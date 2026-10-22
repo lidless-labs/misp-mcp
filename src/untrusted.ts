@@ -28,3 +28,20 @@ export function fenceUntrusted(text: string, label?: string): string {
   const attrs = label ? ` name="${label}"` : "";
   return `<${UNTRUSTED_TAG}${attrs}>\n${escapeUntrusted(text)}\n</${UNTRUSTED_TAG}>`;
 }
+
+const trustedBlocks = new WeakSet<object>();
+
+/**
+ * Text block written by this server (for example a paging note). Tool output
+ * fencing leaves these blocks alone so server instructions are not presented
+ * as untrusted data.
+ */
+export function trustedText(text: string): { type: "text"; text: string } {
+  const block = { type: "text" as const, text };
+  trustedBlocks.add(block);
+  return block;
+}
+
+export function isTrustedBlock(block: object): boolean {
+  return trustedBlocks.has(block);
+}
