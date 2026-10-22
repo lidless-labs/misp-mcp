@@ -24,12 +24,14 @@ misp-mcp is a [Model Context Protocol](https://modelcontextprotocol.io/) server 
 
 ## What it does
 
-misp-mcp connects an AI agent to a MISP (Malware Information Sharing Platform & Threat Intelligence Sharing) instance over MISP's REST API and exposes it as Model Context Protocol tools, resources, and prompts. Point it at your MISP server with an API key and an LLM can search threat-intelligence events, look up and add indicators of compromise (IOCs), correlate indicators across events, attach MITRE ATT&CK galaxy clusters, check warninglists for false positives, and export IOCs as Suricata, Snort, STIX, CSV, RPZ, or hash lists. Read paths are safe by default. Destructive and publishing operations (delete, publish, untag) are gated behind explicit confirmation flags so an agent cannot delete an event or publish to sharing partners without approval. Other state-changing writes, including creating events, adding IOCs, attaching galaxy clusters, and toggling feeds, execute immediately when called.
+misp-mcp connects an AI agent to a MISP (Malware Information Sharing Platform & Threat Intelligence Sharing) instance over MISP's REST API and exposes it as Model Context Protocol tools, resources, and prompts. Point it at your MISP server with an API key and an LLM can search threat-intelligence events, look up and add indicators of compromise (IOCs), correlate indicators across events, attach MITRE ATT&CK galaxy clusters, check warninglists for false positives, and export IOCs as Suricata, Snort, STIX, CSV, RPZ, or hash lists. The server is read-only by default: every tool that changes MISP state refuses to run until the operator names it in `MISP_ALLOWED_MUTATIONS`. Destructive and publishing operations (delete, publish, untag, disabling a feed, false-positive and expiration sightings) additionally need a per-call confirmation flag, and bulk writes need confirmation above a small size.
 
 - **36 MCP tools** covering events, attributes, correlations, tags, exports, sightings, warninglists, objects, galaxies, feeds, organisations, and server administration.
 - **3 MCP resources** for browsing attribute types, instance statistics, and available taxonomies.
 - **3 MCP prompts** for guided IOC investigation, incident event creation, and threat reporting.
-- **Confirmation-gated destructive actions:** delete, publish, and untag refuse to run without `confirm: true` (and `confirmHard: true` for permanent deletes); ordinary writes execute without confirmation.
+- **Read-only by default:** state-changing tools run only when listed in `MISP_ALLOWED_MUTATIONS`; each also accepts `dryRun: true` to preview a call without sending it.
+- **Confirmation-gated destructive actions:** delete, publish, untag, feed disable, and false-positive/expiration sightings refuse to run without `confirm: true` (and `confirmHard: true` for permanent deletes).
+- **Untrusted-data fencing:** MISP content returned to the model is wrapped in `<untrusted_misp_data>` markers, and every tool declares MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`).
 - **MITRE ATT&CK integration** via galaxy cluster search and attachment.
 - **Export formats** including CSV, STIX, Suricata, Snort, text, RPZ, and hash lists.
 - **SSL flexibility** for the self-signed certificates common in on-prem MISP deployments.
@@ -47,6 +49,8 @@ claude mcp add misp \
 ```
 
 Add `--scope user` to make it available from any directory instead of only the current project.
+
+The server starts read-only. To let the agent write, add `--env MISP_ALLOWED_MUTATIONS=misp_create_event,misp_add_attribute` (the tools you want enabled) or `--env MISP_ALLOWED_MUTATIONS='*'`; see [Mutation gate and destructive action safety](#mutation-gate-and-destructive-action-safety).
 
 Before wiring a client, verify that the package can reach MISP with the same environment:
 
@@ -91,39 +95,53 @@ Claude Desktop reads this from `~/Library/Application Support/Claude/claude_desk
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `MISP_URL` | Yes | - | MISP instance base URL |
+| `MISP_URL` | Yes | - | MISP instance base URL. Must be `https://`; plain `http://` is accepted only for `localhost`, `127.0.0.1`, and `[::1]`. Credentials, query strings, and fragments are rejected. |
 | `MISP_API_KEY` | Yes | - | API authentication key |
 | `MISP_VERIFY_SSL` | No | `true` | Set `false` for self-signed certs |
 | `MISP_TIMEOUT` | No | `30` | Request timeout in seconds (positive integer, 1–3600) |
-| `MISP_ALLOW_DESTRUCTIVE` | No | `false` | Set `true` to pre-authorize destructive tools so the per-call `confirm` flag is not required. Permanent (`hard`) deletes still require `confirmHard`. |
+| `MISP_ALLOWED_MUTATIONS` | No | empty (read-only) | Comma-separated list of state-changing tools the server may run (for example `misp_create_event,misp_add_attribute`), or `*` for all of them. Unknown names fail at startup. |
+| `MISP_MAX_RESPONSE_BYTES` | No | `16777216` | Strict cap on one MISP response body, in bytes (1024–268435456). Larger responses are aborted. |
+| `MISP_ALLOW_DESTRUCTIVE` | No | `false` | Set `true` to pre-authorize destructive tools so the per-call `confirm` flag is not required for tools that are already enabled by `MISP_ALLOWED_MUTATIONS`. Permanent (`hard`) deletes still require `confirmHard`. |
 
-### Destructive action safety
+### Mutation gate and destructive action safety
 
-Not every write requires confirmation. Read-only tools and most state-changing writes execute immediately when called. Only destructive or publishing actions are confirmation-gated.
+The server starts read-only. Read tools always work. A tool that changes MISP state returns a `Refused:` error and sends no request unless the operator lists it in `MISP_ALLOWED_MUTATIONS` (or sets it to `*`). The allowlist is read from the server's environment, so a model cannot change it.
 
-**Execute immediately (no `confirm` flag):**
+```
+MISP_ALLOWED_MUTATIONS=misp_create_event,misp_add_attribute,misp_tag_event
+```
 
-- Event writes: `misp_create_event`, `misp_update_event`
-- Attribute writes: `misp_add_attribute`, `misp_add_attributes_bulk`
-- Object writes: `misp_add_object`
-- Tag writes: `misp_tag_event` when adding a tag (`remove` is false or omitted)
-- Sightings: `misp_add_sighting`
-- Galaxies: `misp_attach_galaxy_cluster`
-- Feeds: `misp_toggle_feed`, `misp_fetch_feed`, `misp_cache_feed`
+**State-changing tools (gated by `MISP_ALLOWED_MUTATIONS`):** `misp_create_event`, `misp_update_event`, `misp_publish_event`, `misp_tag_event`, `misp_delete_event`, `misp_add_attribute`, `misp_add_attributes_bulk`, `misp_delete_attribute`, `misp_add_sighting`, `misp_add_object`, `misp_delete_object`, `misp_attach_galaxy_cluster`, `misp_toggle_feed`, `misp_fetch_feed`, `misp_cache_feed`.
 
-**Require `confirm: true` (or `MISP_ALLOW_DESTRUCTIVE=true`):**
+Every one of them accepts `dryRun: true`. A dry run validates the arguments, reports whether the tool is currently allowed, and sends nothing to MISP, so it works in read-only mode too.
+
+**Also require `confirm: true` (or `MISP_ALLOW_DESTRUCTIVE=true`):**
 
 - `misp_delete_event`
 - `misp_delete_attribute`
 - `misp_delete_object`
 - `misp_publish_event`
 - `misp_tag_event` when `remove: true`
+- `misp_toggle_feed` when `enable: false`
+- `misp_add_sighting` with `type` 1 (false positive) or 2 (expiration)
+- `misp_add_attributes_bulk` with more than 10 attributes
 
-Setting `MISP_ALLOW_DESTRUCTIVE=true` pre-authorizes the gated actions above so the per-call `confirm` flag can be omitted (useful for trusted automation).
+Setting `MISP_ALLOW_DESTRUCTIVE=true` pre-authorizes the confirmations above so the per-call `confirm` flag can be omitted (useful for trusted automation). It does not enable any tool by itself; the tool must also be in `MISP_ALLOWED_MUTATIONS`.
 
 Permanent **hard** deletes (`hard: true` on `misp_delete_attribute` / `misp_delete_object`) require a **second** confirmation, `confirmHard: true`, in addition to `confirm: true`. The env opt-in does **not** bypass `confirmHard`.
 
 Future destructive CLI commands use the same policy: `MISP_ALLOW_DESTRUCTIVE=true` plus `--confirm --destructive`, with `--confirm-hard` still required for permanent deletes.
+
+### Untrusted MISP content
+
+Event titles, comments, IOC values, tags, export bodies, and similar fields are written by other organizations. Tool results wrap them in `<untrusted_misp_data>` markers, the JSON resources carry them under an `untrusted_misp_data` key beside a notice so they stay valid JSON, any marker-like text inside the content is escaped, and tool descriptions and the server instructions tell the model to treat the content as data. Prompt arguments are delimited the same way.
+
+### Bounds
+
+- Responses are read through a strict byte cap (`MISP_MAX_RESPONSE_BYTES`) and the request timeout stays active until the body is fully read.
+- `misp_add_attributes_bulk` takes at most 100 attributes and stops after five consecutive failures; the result lists succeeded, failed, and skipped items and warns about partial updates.
+- `misp_get_related_events` accepts `maxAttributes` up to 50 and `perAttributeLimit` up to 500. Tag lists are capped at 20 and object attribute lists at 100.
+- Upstream error bodies are not returned to the model. Errors carry the status class, and for 4xx responses a short, redacted `message` field. The API key is redacted from every error.
 
 A guarded call returns an error (`isError: true`) with a `Refused:` message and performs no MISP request.
 
@@ -420,7 +438,11 @@ misp-mcp/
     index.ts              # Library export surface
     config.ts             # Environment config + validation
     client.ts             # MISP REST API client
-    guards.ts             # Destructive-action confirmation guards
+    guards.ts             # Mutation allowlist + destructive-action confirmation guards
+    tool-specs.ts         # Per-tool annotations and mutation flags
+    tool-registry.ts      # Tool registration: gate, fence, error redaction
+    untrusted.ts          # <untrusted_misp_data> fencing helpers
+    limits.ts             # Bulk and fan-out maxima
     types.ts              # MISP API type definitions
     resources.ts          # MCP resources
     prompts.ts            # MCP prompts

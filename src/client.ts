@@ -4,7 +4,8 @@
 // disagree on the dispatcher interface (e.g. Node 22 + undici 8 rejects every
 // request with "invalid onRequestStart method" before anything hits the wire).
 import { Agent, fetch, type Response } from "undici";
-import type { MispConfig } from "./config.js";
+import { MISP_MAX_RESPONSE_BYTES_DEFAULT, type MispConfig } from "./config.js";
+import { sanitizeErrorMessage } from "./safe-error.js";
 import type {
   MispEvent,
   MispAttribute,
@@ -27,7 +28,7 @@ import type {
 
 // Allow numeric IDs or UUIDs (and any combination of [A-Za-z0-9_-]). Reject
 // anything that could alter the URL path (slashes, query/fragment chars, etc).
-const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+export const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 function encodeId(id: string, kind = "id"): string {
   if (!ID_PATTERN.test(id)) {
     throw new Error(`Invalid ${kind}: ${JSON.stringify(id)}`);
@@ -69,16 +70,33 @@ function describeFetchError(err: unknown): string {
   return detail;
 }
 
+const MAX_ERROR_DETAIL_CHARS = 200;
+
+function statusClass(status: number): string {
+  if (status >= 500) return "server error";
+  if (status >= 400) return "client error";
+  return "unexpected status";
+}
+
+class ResponseTooLargeError extends Error {
+  constructor(limit: number) {
+    super(`MISP API response exceeded the ${limit} byte limit (see MISP_MAX_RESPONSE_BYTES)`);
+    this.name = "ResponseTooLargeError";
+  }
+}
+
 export class MispClient {
   private baseUrl: string;
   private apiKey: string;
   private timeout: number;
+  private maxResponseBytes: number;
   private dispatcher: Agent;
 
   constructor(config: MispConfig) {
     this.baseUrl = config.url;
     this.apiKey = config.apiKey;
     this.timeout = config.timeout;
+    this.maxResponseBytes = config.maxResponseBytes ?? MISP_MAX_RESPONSE_BYTES_DEFAULT;
     this.dispatcher = new Agent({
       connect: { rejectUnauthorized: config.verifySsl },
     });
@@ -111,56 +129,134 @@ export class MispClient {
     };
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    let timedOut = false;
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, this.timeout);
 
-    let response: Response;
+    // The timer stays armed until the body has been read, so a server that
+    // sends headers and then stalls cannot hang the caller.
     try {
-      response = await fetch(url, {
-        method,
-        headers,
-        body: body ? JSON.stringify(body) : undefined,
-        signal: controller.signal,
-        dispatcher: this.dispatcher,
-      });
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        throw new Error(`MISP API timeout after ${this.timeout}ms`);
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method,
+          headers,
+          body: body ? JSON.stringify(body) : undefined,
+          signal: controller.signal,
+          dispatcher: this.dispatcher,
+        });
+      } catch (err) {
+        throw this.requestFailure(err, timedOut);
       }
-      throw new Error(`MISP API request failed: ${describeFetchError(err)}`);
+
+      let text: string;
+      try {
+        text = await this.readBody(response, controller);
+      } catch (err) {
+        if (err instanceof ResponseTooLargeError) throw err;
+        throw this.requestFailure(err, timedOut);
+      }
+
+      if (!response.ok) {
+        const statusMessages: Record<number, string> = {
+          401: "Invalid API key or unauthorized",
+          403: "Insufficient permissions",
+          404: "Resource not found",
+          405: "Method not allowed",
+        };
+
+        const prefix =
+          statusMessages[response.status] ||
+          `HTTP ${response.status} (${statusClass(response.status)})`;
+        const detail = response.status < 500 ? this.extractErrorDetail(text) : "";
+        throw new Error(detail ? `${prefix}: ${detail}` : prefix);
+      }
+
+      if (rawResponse) {
+        return text;
+      }
+
+      try {
+        return JSON.parse(text) as T;
+      } catch {
+        throw new Error("Failed to parse MISP response as JSON");
+      }
     } finally {
       clearTimeout(timeoutId);
     }
+  }
 
-    const text = await response.text();
+  private requestFailure(err: unknown, timedOut: boolean): Error {
+    if (timedOut || (err instanceof Error && err.name === "AbortError")) {
+      return new Error(`MISP API timeout after ${this.timeout}ms`);
+    }
+    return new Error(this.redact(`MISP API request failed: ${describeFetchError(err)}`));
+  }
 
-    if (!response.ok) {
-      const statusMessages: Record<number, string> = {
-        401: "Invalid API key or unauthorized",
-        403: "Insufficient permissions",
-        404: "Resource not found",
-        405: "Method not allowed",
-      };
+  /**
+   * Reads the response body into memory, enforcing the byte cap while
+   * streaming. Responses without a body stream (empty bodies) fall back to
+   * text().
+   */
+  private async readBody(response: Response, controller: AbortController): Promise<string> {
+    const limit = this.maxResponseBytes;
+    const tooLarge = () => {
+      controller.abort();
+      return new ResponseTooLargeError(limit);
+    };
 
-      const prefix = statusMessages[response.status] || `HTTP ${response.status}`;
-      let detail = "";
-      try {
-        const parsed = JSON.parse(text);
-        detail = parsed.message || parsed.errors || text;
-      } catch {
-        detail = text;
-      }
-      throw new Error(`${prefix}: ${detail}`);
+    const declared = Number(response.headers?.get("content-length"));
+    if (Number.isFinite(declared) && declared > limit) {
+      throw tooLarge();
     }
 
-    if (rawResponse) {
+    if (!response.body) {
+      const text = await response.text();
+      if (Buffer.byteLength(text) > limit) throw tooLarge();
       return text;
     }
 
-    try {
-      return JSON.parse(text) as T;
-    } catch {
-      throw new Error(`Failed to parse MISP response as JSON: ${text.slice(0, 200)}`);
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > limit) {
+        await reader.cancel().catch(() => undefined);
+        throw tooLarge();
+      }
+      chunks.push(value);
     }
+    return Buffer.concat(chunks).toString("utf8");
+  }
+
+  /**
+   * Extracts a short, redacted message from a 4xx JSON error body. Raw bodies
+   * are never returned: anything that is not a plain `message`/`errors` field
+   * is dropped, control characters are removed, and the result is capped.
+   */
+  private extractErrorDetail(text: string): string {
+    let candidate: unknown;
+    try {
+      const parsed = JSON.parse(text) as { message?: unknown; errors?: unknown };
+      candidate = parsed?.message ?? parsed?.errors;
+    } catch {
+      return "";
+    }
+    if (candidate === undefined || candidate === null) return "";
+
+    const raw = typeof candidate === "string" ? candidate : JSON.stringify(candidate);
+    const cleaned = this.redact(raw).replace(/[\u0000-\u001f\u007f]+/g, " ").trim();
+    return cleaned.slice(0, MAX_ERROR_DETAIL_CHARS);
+  }
+
+  /** Removes the API key and credential-shaped text, and caps the length. */
+  redact(text: string): string {
+    return sanitizeErrorMessage(text, [this.apiKey]);
   }
 
   // --- Event methods ---

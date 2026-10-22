@@ -1,9 +1,17 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
+import { createMutationPolicy, type MutationPolicy } from "../guards.js";
+import { ToolRegistry } from "../tool-registry.js";
 
-export function registerWarninglistTools(server: McpServer, client: MispClient): void {
-  server.tool(
+export function registerWarninglistTools(
+  server: McpServer,
+  client: MispClient,
+  policy: MutationPolicy = createMutationPolicy()
+): void {
+  const tools = new ToolRegistry(server, client, policy);
+
+  tools.add(
     "misp_check_warninglists",
     "Check if an observable value appears on any MISP warninglists (known benign/false positive lists)",
     {

@@ -1,11 +1,19 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
-import { requireConfirmation, requireHardConfirmation } from "../guards.js";
+import { OBJECT_MAX_ATTRIBUTES } from "../limits.js";
+import { ToolRegistry } from "../tool-registry.js";
+import { requireConfirmation, requireHardConfirmation, createMutationPolicy, type MutationPolicy } from "../guards.js";
 
-export function registerObjectTools(server: McpServer, client: MispClient): void {
+export function registerObjectTools(
+  server: McpServer,
+  client: MispClient,
+  policy: MutationPolicy = createMutationPolicy()
+): void {
+  const tools = new ToolRegistry(server, client, policy);
+
   // List object templates
-  server.tool(
+  tools.add(
     "misp_list_object_templates",
     "List available MISP object templates (file, domain-ip, email, network-connection, etc.)",
     {
@@ -61,7 +69,7 @@ export function registerObjectTools(server: McpServer, client: MispClient): void
   );
 
   // Get object template details
-  server.tool(
+  tools.add(
     "misp_get_object_template",
     "Get details of a specific MISP object template including required and optional attributes",
     {
@@ -88,7 +96,7 @@ export function registerObjectTools(server: McpServer, client: MispClient): void
   );
 
   // Add object to event
-  server.tool(
+  tools.add(
     "misp_add_object",
     "Add a MISP object (structured group of attributes) to an event",
     {
@@ -117,7 +125,9 @@ export function registerObjectTools(server: McpServer, client: MispClient): void
             comment: z.string().optional().describe("Comment"),
           })
         )
-        .describe("Attributes to include in the object"),
+        .min(1)
+        .max(OBJECT_MAX_ATTRIBUTES)
+        .describe(`Attributes to include in the object (1-${OBJECT_MAX_ATTRIBUTES})`),
       comment: z.string().optional().describe("Object-level comment"),
       distribution: z
         .number()
@@ -171,7 +181,7 @@ export function registerObjectTools(server: McpServer, client: MispClient): void
   );
 
   // Delete object
-  server.tool(
+  tools.add(
     "misp_delete_object",
     "Delete a MISP object from an event. Destructive: requires confirm:true (or MISP_ALLOW_DESTRUCTIVE=true); hard delete also requires confirmHard:true.",
     {

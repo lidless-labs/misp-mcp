@@ -5,7 +5,6 @@ vi.mock("undici", async (importOriginal) => ({
   ...(await importOriginal<typeof import("undici")>()),
   fetch: vi.fn(),
 }));
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MispClient } from "../src/client.js";
 import { registerEventTools } from "../src/tools/events.js";
 import { registerAttributeTools } from "../src/tools/attributes.js";
@@ -15,6 +14,8 @@ import { registerExportTools } from "../src/tools/exports.js";
 import { registerSightingTools } from "../src/tools/sightings.js";
 import { registerWarninglistTools } from "../src/tools/warninglists.js";
 import type { MispConfig } from "../src/config.js";
+import { ALLOW_ALL_MUTATIONS } from "../src/guards.js";
+import { createToolHarness } from "./helpers.js";
 
 const mockConfig: MispConfig = {
   url: "https://misp.example.com",
@@ -25,28 +26,7 @@ const mockConfig: MispConfig = {
 
 // Helper to extract the tool handler from McpServer registration
 function createTestHarness() {
-  const handlers = new Map<string, (params: Record<string, unknown>) => Promise<unknown>>();
-
-  const mockServer = {
-    tool: vi.fn(
-      (
-        name: string,
-        _descriptionOrSchema: unknown,
-        schemaOrHandler: unknown,
-        handler?: unknown
-      ) => {
-        // Handle both 3-arg and 4-arg overloads
-        const actualHandler = (handler || schemaOrHandler) as (
-          params: Record<string, unknown>
-        ) => Promise<unknown>;
-        handlers.set(name, actualHandler);
-      }
-    ),
-    resource: vi.fn(),
-    prompt: vi.fn(),
-  } as unknown as McpServer;
-
-  return { mockServer, handlers };
+  return createToolHarness();
 }
 
 function mockFetchResponse(response: unknown, status = 200) {
@@ -68,7 +48,7 @@ describe("Event Tools", () => {
     const harness = createTestHarness();
     handlers = harness.handlers;
     client = new MispClient(mockConfig);
-    registerEventTools(harness.mockServer, client);
+    registerEventTools(harness.mockServer, client, ALLOW_ALL_MUTATIONS);
   });
 
   describe("misp_search_events", () => {
@@ -314,7 +294,7 @@ describe("Attribute Tools", () => {
     const harness = createTestHarness();
     handlers = harness.handlers;
     client = new MispClient(mockConfig);
-    registerAttributeTools(harness.mockServer, client);
+    registerAttributeTools(harness.mockServer, client, ALLOW_ALL_MUTATIONS);
   });
 
   describe("misp_search_attributes", () => {
@@ -426,7 +406,7 @@ describe("Attribute Tools", () => {
         attributes: [
           { type: "ip-src", value: "10.0.0.1" },
           { type: "ip-src", value: "10.0.0.2" },
-          { type: "ip-src", value: "10.0.0.3" },
+          { type: "ip-src", value: "192.0.2.3" },
         ],
       })) as { content: Array<{ type: string; text: string }> };
 
@@ -473,7 +453,7 @@ describe("Attribute Tools", () => {
         attributes: [
           { type: "ip-src", value: "10.0.0.1" },
           { type: "ip-src", value: "10.0.0.2" },
-          { type: "ip-src", value: "10.0.0.3" },
+          { type: "ip-src", value: "192.0.2.3" },
         ],
       })) as { content: Array<{ type: string; text: string }> };
 
@@ -532,7 +512,7 @@ describe("Correlation Tools", () => {
     const harness = createTestHarness();
     handlers = harness.handlers;
     const client = new MispClient(mockConfig);
-    registerCorrelationTools(harness.mockServer, client);
+    registerCorrelationTools(harness.mockServer, client, ALLOW_ALL_MUTATIONS);
   });
 
   describe("misp_correlate", () => {
@@ -627,7 +607,7 @@ describe("Tag Tools", () => {
     const harness = createTestHarness();
     handlers = harness.handlers;
     const client = new MispClient(mockConfig);
-    registerTagTools(harness.mockServer, client);
+    registerTagTools(harness.mockServer, client, ALLOW_ALL_MUTATIONS);
   });
 
   describe("misp_list_tags", () => {
@@ -714,7 +694,7 @@ describe("Export Tools", () => {
     const harness = createTestHarness();
     handlers = harness.handlers;
     const client = new MispClient(mockConfig);
-    registerExportTools(harness.mockServer, client);
+    registerExportTools(harness.mockServer, client, ALLOW_ALL_MUTATIONS);
   });
 
   describe("misp_export_iocs", () => {
@@ -758,7 +738,7 @@ describe("Sighting Tools", () => {
     const harness = createTestHarness();
     handlers = harness.handlers;
     const client = new MispClient(mockConfig);
-    registerSightingTools(harness.mockServer, client);
+    registerSightingTools(harness.mockServer, client, ALLOW_ALL_MUTATIONS);
   });
 
   describe("misp_add_sighting", () => {
@@ -807,7 +787,7 @@ describe("Warninglist Tools", () => {
     const harness = createTestHarness();
     handlers = harness.handlers;
     const client = new MispClient(mockConfig);
-    registerWarninglistTools(harness.mockServer, client);
+    registerWarninglistTools(harness.mockServer, client, ALLOW_ALL_MUTATIONS);
   });
 
   describe("misp_check_warninglists", () => {

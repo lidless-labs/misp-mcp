@@ -9,6 +9,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MispClient } from "../src/client.js";
 import { registerFeedTools } from "../src/tools/feeds.js";
 import type { MispConfig } from "../src/config.js";
+import { ALLOW_ALL_MUTATIONS } from "../src/guards.js";
+import { createToolHarness } from "./helpers.js";
 
 const mockConfig: MispConfig = {
   url: "https://misp.example.com",
@@ -18,16 +20,7 @@ const mockConfig: MispConfig = {
 };
 
 function createTestHarness() {
-  const handlers = new Map<string, (params: Record<string, unknown>) => Promise<unknown>>();
-  const mockServer = {
-    tool: vi.fn((_name: string, _desc: unknown, schemaOrHandler: unknown, handler?: unknown) => {
-      const actualHandler = (handler || schemaOrHandler) as (params: Record<string, unknown>) => Promise<unknown>;
-      handlers.set(_name, actualHandler);
-    }),
-    resource: vi.fn(),
-    prompt: vi.fn(),
-  } as unknown as McpServer;
-  return { mockServer, handlers };
+  return createToolHarness();
 }
 
 function mockFetch(response: unknown, status = 200) {
@@ -45,7 +38,7 @@ describe("Feed Tools", () => {
     const harness = createTestHarness();
     handlers = harness.handlers;
     const client = new MispClient(mockConfig);
-    registerFeedTools(harness.mockServer, client);
+    registerFeedTools(harness.mockServer, client, ALLOW_ALL_MUTATIONS);
   });
 
   describe("misp_list_feeds", () => {
@@ -94,7 +87,7 @@ describe("Feed Tools", () => {
     it("should disable a feed", async () => {
       vi.mocked(fetch).mockReset().mockImplementation(mockFetch({ message: "Feed disabled." }));
       const handler = handlers.get("misp_toggle_feed")!;
-      const result = (await handler({ feedId: "1", enable: false })) as { content: Array<{ text: string }> };
+      const result = (await handler({ feedId: "1", enable: false, confirm: true })) as { content: Array<{ text: string }> };
       expect(result.content[0].text).toContain("disabled");
     });
   });

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Breaking:** the server is read-only by default. Every state-changing tool now refuses to run unless it is listed in the new `MISP_ALLOWED_MUTATIONS` environment variable (comma-separated tool names, or `*`). Existing setups that create events, add attributes, tag, sight, attach clusters, or manage feeds must set it. Unknown names fail at startup.
+- All state-changing tools accept `dryRun: true`, which validates and previews the call without contacting MISP and works in read-only mode.
+- `misp_toggle_feed` with `enable: false`, `misp_add_sighting` with type 1 or 2, and `misp_add_attributes_bulk` with more than 10 attributes now require `confirm: true` (or `MISP_ALLOW_DESTRUCTIVE=true`).
+- `MISP_ALLOW_DESTRUCTIVE` no longer enables anything on its own; the tool must also be in `MISP_ALLOWED_MUTATIONS`.
+- Tool results (including `dryRun` previews and error text, after secret redaction) are wrapped in `<untrusted_misp_data>` markers, and the JSON resources carry their payload under an `untrusted_misp_data` key beside a notice, with marker-like text escaped in both, tool descriptions and server instructions say the content is untrusted, and prompt arguments are delimited the same way.
+- Every tool declares MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) from one table in `src/tool-specs.ts`.
+- Upstream error bodies are no longer returned. Errors carry the HTTP status class, plus a short, redacted `message` for 4xx responses, and the API key is redacted from every error a tool returns.
+- `misp_add_attributes_bulk` accepts 1 to 100 attributes, stops after five consecutive failures, and reports succeeded, failed, and skipped items with a partial-update warning. `misp_get_related_events` caps `maxAttributes` at 50 and `perAttributeLimit` at 500; tag lists are capped at 20 and object attribute lists at 100.
+- `MISP_URL` must be `https://` (plain `http://` only for `localhost`, `127.0.0.1`, `[::1]`) and may not contain credentials, a query string, or a fragment.
+- Publish workflows pin third-party actions to commit SHAs and install an exact npm version instead of `npm@latest`.
+
+### Added
+- `MISP_MAX_RESPONSE_BYTES` (default 16 MiB) caps one response body. The request timeout now stays armed while the body is read, so a stalled response can no longer hang a call.
+
 ## [1.3.6] - 2026-07-17
 
 ### Fixed

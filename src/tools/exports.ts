@@ -1,10 +1,18 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
+import { createMutationPolicy, type MutationPolicy } from "../guards.js";
+import { ToolRegistry } from "../tool-registry.js";
 
-export function registerExportTools(server: McpServer, client: MispClient): void {
+export function registerExportTools(
+  server: McpServer,
+  client: MispClient,
+  policy: MutationPolicy = createMutationPolicy()
+): void {
+  const tools = new ToolRegistry(server, client, policy);
+
   // Export IOCs
-  server.tool(
+  tools.add(
     "misp_export_iocs",
     "Export IOCs from MISP in various formats (CSV, STIX, Suricata, Snort, text, RPZ)",
     {
@@ -48,7 +56,7 @@ export function registerExportTools(server: McpServer, client: MispClient): void
   );
 
   // Export hashes
-  server.tool(
+  tools.add(
     "misp_export_hashes",
     "Export file hashes from MISP for HIDS integration",
     {

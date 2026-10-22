@@ -1,10 +1,19 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
+import { createMutationPolicy, type MutationPolicy } from "../guards.js";
+import { CORRELATION_MAX_ATTRIBUTES, CORRELATION_MAX_PER_ATTRIBUTE } from "../limits.js";
+import { ToolRegistry } from "../tool-registry.js";
 
-export function registerCorrelationTools(server: McpServer, client: MispClient): void {
+export function registerCorrelationTools(
+  server: McpServer,
+  client: MispClient,
+  policy: MutationPolicy = createMutationPolicy()
+): void {
+  const tools = new ToolRegistry(server, client, policy);
+
   // Correlate an observable value
-  server.tool(
+  tools.add(
     "misp_correlate",
     "Find correlations for a specific observable value across all MISP events",
     {
@@ -83,15 +92,15 @@ export function registerCorrelationTools(server: McpServer, client: MispClient):
   );
 
   // Get related events
-  server.tool(
+  tools.add(
     "misp_get_related_events",
     "Get events related to a specific event through shared attributes and correlations",
     {
       eventId: z.string().describe("Event ID to find related events for"),
-      maxAttributes: z.number().int().positive().optional()
-        .describe("Max number of to_ids attributes to correlate across (default 20). Higher values hit the MISP API more."),
-      perAttributeLimit: z.number().int().positive().optional()
-        .describe("Max matches to fetch per attribute value (default 100)."),
+      maxAttributes: z.number().int().positive().max(CORRELATION_MAX_ATTRIBUTES).optional()
+        .describe(`Max number of to_ids attributes to correlate across (default 20, max ${CORRELATION_MAX_ATTRIBUTES}). Each one is a separate MISP API request.`),
+      perAttributeLimit: z.number().int().positive().max(CORRELATION_MAX_PER_ATTRIBUTE).optional()
+        .describe(`Max matches to fetch per attribute value (default 100, max ${CORRELATION_MAX_PER_ATTRIBUTE}).`),
     },
     async ({ eventId, maxAttributes, perAttributeLimit }) => {
       try {
@@ -198,7 +207,7 @@ export function registerCorrelationTools(server: McpServer, client: MispClient):
   );
 
   // Describe types
-  server.tool(
+  tools.add(
     "misp_describe_types",
     "Get all available MISP attribute types and categories with their mappings",
     {},
