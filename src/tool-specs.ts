@@ -55,6 +55,11 @@ export const TOOL_SPECS: Readonly<Record<string, ToolSpec>> = {
   misp_add_object: { mutating: true, destructive: false, idempotent: false },
   misp_delete_object: { mutating: true, destructive: true, idempotent: true },
 
+  // Event reports
+  misp_list_event_reports: { mutating: false },
+  misp_get_event_report: { mutating: false },
+  misp_add_event_report: { mutating: true, destructive: false, idempotent: false },
+
   // Galaxies
   misp_list_galaxies: { mutating: false },
   misp_get_galaxy: { mutating: false },

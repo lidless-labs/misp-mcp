@@ -11,6 +11,7 @@ import type {
   MispAttribute,
   MispObject,
   MispSighting,
+  MispEventReport,
   MispObjectTemplate,
   MispFeed,
   MispOrganisation,
@@ -565,6 +566,49 @@ export class MispClient {
       `/sightings/index/${encodeId(eventId, "eventId")}`
     );
     return (Array.isArray(data) ? data : []).map((s) => (s.Sighting ?? s) as MispSighting);
+  }
+
+  // --- Event reports ---
+
+  /**
+   * Lists event reports for one event. MISP's documented index endpoint lists
+   * reports across all events, so the event filter is applied here.
+   */
+  async listEventReports(eventId: string): Promise<MispEventReport[]> {
+    encodeId(eventId, "eventId");
+    const data = await this.request<Array<{ EventReport?: MispEventReport } & Partial<MispEventReport>>>(
+      "GET",
+      "/eventReports/index"
+    );
+    return (Array.isArray(data) ? data : [])
+      .map((r) => (r.EventReport ?? r) as MispEventReport)
+      .filter((r) => String(r.event_id) === eventId);
+  }
+
+  async getEventReport(eventReportId: string): Promise<MispEventReport> {
+    const data = await this.request<{ EventReport: MispEventReport }>(
+      "GET",
+      `/eventReports/view/${encodeId(eventReportId, "eventReportId")}`
+    );
+    return data.EventReport;
+  }
+
+  async addEventReport(
+    eventId: string,
+    params: { name: string; content: string; distribution?: number }
+  ): Promise<MispEventReport> {
+    const body: Record<string, unknown> = {
+      name: params.name,
+      content: params.content,
+    };
+    if (params.distribution !== undefined) body.distribution = params.distribution;
+
+    const data = await this.request<{ EventReport: MispEventReport }>(
+      "POST",
+      `/eventReports/add/${encodeId(eventId, "eventId")}`,
+      body
+    );
+    return data.EventReport;
   }
 
   // --- Warninglists ---

@@ -6,6 +6,7 @@ import { MispClient } from "./client.js";
 import { createMutationPolicy, type MutationPolicy } from "./guards.js";
 import { UNTRUSTED_NOTICE } from "./untrusted.js";
 import { registerEventTools } from "./tools/events.js";
+import { registerEventReportTools } from "./tools/event-reports.js";
 import { registerAttributeTools } from "./tools/attributes.js";
 import { registerCorrelationTools } from "./tools/correlation.js";
 import { registerTagTools } from "./tools/tags.js";
@@ -50,6 +51,7 @@ export function createMispMcpServer(deps: MispServerDeps = {}): McpServer {
   );
 
   registerEventTools(server, client, mutations);
+  registerEventReportTools(server, client, mutations);
   registerAttributeTools(server, client, mutations);
   registerCorrelationTools(server, client, mutations);
   registerTagTools(server, client, mutations);
