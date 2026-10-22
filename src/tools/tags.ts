@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
 import { createMutationPolicy, type MutationPolicy } from "../guards.js";
+import { limitInput } from "../limits.js";
 import { ToolRegistry } from "../tool-registry.js";
 
 export function registerTagTools(
@@ -17,7 +18,7 @@ export function registerTagTools(
     "List available MISP tags with usage statistics",
     {
       search: z.string().optional().describe("Search filter for tag names"),
-      limit: z.number().optional().describe("Max results to return"),
+      limit: limitInput("Max results to return (1-500)"),
     },
     async ({ search, limit }) => {
       try {

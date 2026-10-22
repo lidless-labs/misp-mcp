@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
-import { OBJECT_MAX_ATTRIBUTES } from "../limits.js";
+import { limitInput, OBJECT_MAX_ATTRIBUTES } from "../limits.js";
 import { ToolRegistry } from "../tool-registry.js";
 import { requireConfirmation, requireHardConfirmation, createMutationPolicy, type MutationPolicy } from "../guards.js";
 
@@ -18,7 +18,7 @@ export function registerObjectTools(
     "List available MISP object templates (file, domain-ip, email, network-connection, etc.)",
     {
       search: z.string().optional().describe("Filter templates by name"),
-      limit: z.number().optional().describe("Max results (default 50)"),
+      limit: limitInput("Max results (1-500)"),
     },
     async ({ search, limit }) => {
       try {
@@ -131,8 +131,11 @@ export function registerObjectTools(
       comment: z.string().optional().describe("Object-level comment"),
       distribution: z
         .number()
+        .int()
+        .min(0)
+        .max(5)
         .optional()
-        .describe("Distribution level (0-4)"),
+        .describe("Distribution level (0-4, or 5 to inherit from the event)"),
     },
     async ({ eventId, templateName, attributes, comment, distribution }) => {
       try {

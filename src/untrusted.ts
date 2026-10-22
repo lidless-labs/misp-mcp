@@ -38,3 +38,20 @@ export function untrustedJsonDocument(value: unknown): string {
   const payload = JSON.parse(escapeUntrusted(JSON.stringify(value) ?? "null")) as unknown;
   return JSON.stringify({ notice: UNTRUSTED_NOTICE, [UNTRUSTED_TAG]: payload }, null, 2);
 }
+
+const trustedBlocks = new WeakSet<object>();
+
+/**
+ * Text block written by this server (for example a paging note). Tool output
+ * fencing leaves these blocks alone so server instructions are not presented
+ * as untrusted data.
+ */
+export function trustedText(text: string): { type: "text"; text: string } {
+  const block = { type: "text" as const, text };
+  trustedBlocks.add(block);
+  return block;
+}
+
+export function isTrustedBlock(block: object): boolean {
+  return trustedBlocks.has(block);
+}

@@ -395,6 +395,7 @@ export class MispClient {
     includeCorrelations?: boolean;
     last?: string;
     limit?: number;
+    page?: number;
   }): Promise<MispAttribute[]> {
     const body: Record<string, unknown> = {
       returnFormat: "json",
@@ -409,6 +410,7 @@ export class MispClient {
     if (params.includeCorrelations)
       body.includeCorrelations = 1;
     if (params.last) body.last = params.last;
+    if (params.page) body.page = params.page;
 
     const data = await this.request<AttributeSearchResponse>(
       "POST",

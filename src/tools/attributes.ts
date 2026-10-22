@@ -1,8 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
-import { BULK_CONFIRM_THRESHOLD, BULK_MAX_ATTRIBUTES, BULK_MAX_CONSECUTIVE_FAILURES, MAX_TAGS_PER_CALL } from "../limits.js";
+import { limitInput, moreResultsNote, pageInput, BULK_CONFIRM_THRESHOLD, BULK_MAX_ATTRIBUTES, BULK_MAX_CONSECUTIVE_FAILURES, MAX_TAGS_PER_CALL } from "../limits.js";
 import { ToolRegistry } from "../tool-registry.js";
+import { trustedText } from "../untrusted.js";
 import { requireConfirmation, requireHardConfirmation, createMutationPolicy, type MutationPolicy } from "../guards.js";
 
 export function registerAttributeTools(
@@ -24,7 +25,8 @@ export function registerAttributeTools(
       toIds: z.boolean().optional().describe("Only IDS-flagged attributes"),
       includeCorrelations: z.boolean().optional().describe("Include correlation data"),
       last: z.string().optional().describe("Relative time filter (e.g., 1d, 7d, 30d)"),
-      limit: z.number().optional().describe("Max results (default 50)"),
+      limit: limitInput(),
+      page: pageInput(),
     },
     async (params) => {
       try {
@@ -37,6 +39,7 @@ export function registerAttributeTools(
           includeCorrelations: params.includeCorrelations,
           last: params.last,
           limit: params.limit,
+          page: params.page,
         });
 
         if (attributes.length === 0) {
@@ -64,8 +67,12 @@ export function registerAttributeTools(
             : undefined,
         }));
 
+        const note = moreResultsNote(attributes.length, params.limit, params.page);
         return {
-          content: [{ type: "text", text: JSON.stringify(summary, null, 2) }],
+          content: [
+            { type: "text", text: JSON.stringify(summary, null, 2) },
+            ...(note ? [trustedText(note)] : []),
+          ],
         };
       } catch (err) {
         return {
@@ -89,7 +96,7 @@ export function registerAttributeTools(
       category: z.string().optional().describe("Category (auto-determined from type if omitted)"),
       toIds: z.boolean().optional().describe("Flag for IDS export (default true for applicable types)"),
       comment: z.string().optional().describe("Context/notes about this IOC"),
-      distribution: z.number().optional().describe("Distribution level (0-4)"),
+      distribution: z.number().int().min(0).max(5).optional().describe("Distribution level (0-4, or 5 to inherit from the event)"),
       tags: z.array(z.string()).max(MAX_TAGS_PER_CALL).optional().describe(`Tags to apply to the attribute (max ${MAX_TAGS_PER_CALL})`),
     },
     async (params) => {
