@@ -97,11 +97,13 @@ Claude Desktop reads this from `~/Library/Application Support/Claude/claude_desk
 |----------|----------|---------|-------------|
 | `MISP_URL` | Yes | - | MISP instance base URL. Must be `https://`; plain `http://` is accepted only for `localhost`, `127.0.0.1`, and `[::1]`. Credentials, query strings, and fragments are rejected. |
 | `MISP_API_KEY` | Yes | - | API authentication key |
-| `MISP_VERIFY_SSL` | No | `true` | Set `false` for self-signed certs |
+| `MISP_VERIFY_SSL` | No | `true` | Set `false` (or `0`) for self-signed certs. Accepts `true`, `1`, `false`, `0`, case-insensitive. |
 | `MISP_TIMEOUT` | No | `30` | Request timeout in seconds (positive integer, 1–3600) |
 | `MISP_ALLOWED_MUTATIONS` | No | empty (read-only) | Comma-separated list of state-changing tools the server may run (for example `misp_create_event,misp_add_attribute`), or `*` for all of them. Unknown names fail at startup. |
 | `MISP_MAX_RESPONSE_BYTES` | No | `16777216` | Strict cap on one MISP response body, in bytes (1024–268435456). Larger responses are aborted. |
-| `MISP_ALLOW_DESTRUCTIVE` | No | `false` | Set `true` to pre-authorize destructive tools so the per-call `confirm` flag is not required for tools that are already enabled by `MISP_ALLOWED_MUTATIONS`. Permanent (`hard`) deletes still require `confirmHard`. |
+| `MISP_ALLOW_DESTRUCTIVE` | No | `false` | Accepts `true`, `1`, `false`, `0`, case-insensitive; any other value stops the server at startup. Set `true` to pre-authorize destructive tools so the per-call `confirm` flag is not required for tools that are already enabled by `MISP_ALLOWED_MUTATIONS`. Permanent (`hard`) deletes still require `confirmHard`. |
+
+Boolean variables (`MISP_VERIFY_SSL`, `MISP_ALLOW_DESTRUCTIVE`) share one parser: `true`, `1`, `false`, `0`, case-insensitive after trimming; unset or empty means the default. Any other value is rejected at startup with an error that names the variable. The MCP guard and the CLI gate use the same parser, so `MISP_ALLOW_DESTRUCTIVE=1` means the same thing in both.
 
 ### Mutation gate and destructive action safety
 

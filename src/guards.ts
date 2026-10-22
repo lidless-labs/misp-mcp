@@ -1,3 +1,4 @@
+import { parseBooleanEnv } from "./env.js";
 import { MUTATING_TOOL_NAMES } from "./tool-specs.js";
 
 /**
@@ -17,9 +18,13 @@ import { MUTATING_TOOL_NAMES } from "./tool-specs.js";
  * irreversible.
  */
 
-/** True when destructive actions are pre-authorized via environment. */
-export function destructiveEnvOptIn(): boolean {
-  return process.env.MISP_ALLOW_DESTRUCTIVE === "true";
+/**
+ * True when destructive actions are pre-authorized via environment. Accepts
+ * true/1/false/0 (see parseBooleanEnv); an unparseable value throws, so the
+ * guarded call fails closed.
+ */
+export function destructiveEnvOptIn(env: NodeJS.ProcessEnv = process.env): boolean {
+  return parseBooleanEnv("MISP_ALLOW_DESTRUCTIVE", env.MISP_ALLOW_DESTRUCTIVE, false);
 }
 
 /** Operator-controlled set of state-changing tools that may run. */
