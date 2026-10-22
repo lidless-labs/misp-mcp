@@ -145,7 +145,14 @@ export function registerAttributeTools(
       toIds: z.boolean().optional().describe("Set or clear the IDS flag"),
       comment: z.string().optional().describe("New comment (empty string clears it)"),
       disableCorrelation: z.boolean().optional().describe("Disable or enable correlation for this attribute"),
-      distribution: z.number().int().min(0).max(4).optional().describe("Distribution level (0-4)"),
+      distribution: z
+        .number()
+        .int()
+        .min(0)
+        .max(5)
+        .refine((level) => level !== 4, "Distribution 4 (sharing group) needs a sharing group ID, which this tool does not accept")
+        .optional()
+        .describe("Distribution level: 0 organisation only, 1 community, 2 connected communities, 3 all communities, 5 inherit from the event. Level 4 (sharing group) is not supported here."),
     },
     async ({ attributeId, value, type, category, toIds, comment, disableCorrelation, distribution }) => {
       try {
