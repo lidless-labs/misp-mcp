@@ -29,6 +29,16 @@ export function fenceUntrusted(text: string, label?: string): string {
   return `<${UNTRUSTED_TAG}${attrs}>\n${escapeUntrusted(text)}\n</${UNTRUSTED_TAG}>`;
 }
 
+/**
+ * Serializes a value for a resource declared as `application/json`. Text
+ * fences would make the body unparseable, so the payload goes under an
+ * `untrusted_misp_data` key next to the notice, with marker-like text escaped.
+ */
+export function untrustedJsonDocument(value: unknown): string {
+  const payload = JSON.parse(escapeUntrusted(JSON.stringify(value) ?? "null")) as unknown;
+  return JSON.stringify({ notice: UNTRUSTED_NOTICE, [UNTRUSTED_TAG]: payload }, null, 2);
+}
+
 const trustedBlocks = new WeakSet<object>();
 
 /**
