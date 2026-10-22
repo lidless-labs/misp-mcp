@@ -4,6 +4,9 @@ import type { MispClient } from "../client.js";
 import { createMutationPolicy, requireConfirmation, type MutationPolicy } from "../guards.js";
 import { ToolRegistry } from "../tool-registry.js";
 
+const missingSightingTarget = (params: { attributeId?: unknown; value?: unknown }): string | undefined =>
+  !params.attributeId && !params.value ? "Either attributeId or value must be provided." : undefined;
+
 export function registerSightingTools(
   server: McpServer,
   client: MispClient,
@@ -25,13 +28,9 @@ export function registerSightingTools(
     },
     async (params) => {
       try {
-        if (!params.attributeId && !params.value) {
-          return {
-            content: [
-              { type: "text", text: "Either attributeId or value must be provided." },
-            ],
-            isError: true,
-          };
+        const missing = missingSightingTarget(params);
+        if (missing) {
+          return { content: [{ type: "text", text: missing }], isError: true };
         }
 
         if (params.type !== 0) {
@@ -79,6 +78,7 @@ export function registerSightingTools(
           isError: true,
         };
       }
-    }
+    },
+    missingSightingTarget
   );
 }

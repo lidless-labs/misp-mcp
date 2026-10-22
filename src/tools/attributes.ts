@@ -153,18 +153,12 @@ export function registerAttributeTools(
     },
     async ({ eventId, attributes, confirm }) => {
       try {
-        if (attributes.length > BULK_CONFIRM_THRESHOLD && confirm !== true) {
-          return {
-            content: [
-              {
-                type: "text",
-                text:
-                  `Refused: adding ${attributes.length} attributes in one call needs "confirm": true ` +
-                  `(bulk writes above ${BULK_CONFIRM_THRESHOLD} attributes). Pass "dryRun": true to preview first.`,
-              },
-            ],
-            isError: true,
-          };
+        if (attributes.length > BULK_CONFIRM_THRESHOLD) {
+          const guard = requireConfirmation(
+            confirm,
+            `adding ${attributes.length} attributes in one call (bulk writes above ${BULK_CONFIRM_THRESHOLD} attributes)`
+          );
+          if (guard) return guard;
         }
 
         const results: Array<{ value: string; type: string; id?: string; error?: string; skipped?: boolean }> = [];
