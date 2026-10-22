@@ -29,7 +29,7 @@ import type {
 
 // Allow numeric IDs or UUIDs (and any combination of [A-Za-z0-9_-]). Reject
 // anything that could alter the URL path (slashes, query/fragment chars, etc).
-const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+export const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 function encodeId(id: string, kind = "id"): string {
   if (!ID_PATTERN.test(id)) {
     throw new Error(`Invalid ${kind}: ${JSON.stringify(id)}`);
@@ -571,14 +571,14 @@ export class MispClient {
   // --- Event reports ---
 
   /**
-   * Lists event reports for one event. MISP's documented index endpoint lists
-   * reports across all events, so the event filter is applied here.
+   * Lists event reports for one event. The event filter is sent to MISP as a
+   * named path parameter so a large instance does not return every report; the
+   * result is still filtered here in case the server ignores the parameter.
    */
   async listEventReports(eventId: string): Promise<MispEventReport[]> {
-    encodeId(eventId, "eventId");
     const data = await this.request<Array<{ EventReport?: MispEventReport } & Partial<MispEventReport>>>(
       "GET",
-      "/eventReports/index"
+      `/eventReports/index/event_id:${encodeId(eventId, "eventId")}`
     );
     return (Array.isArray(data) ? data : [])
       .map((r) => (r.EventReport ?? r) as MispEventReport)

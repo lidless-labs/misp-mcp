@@ -136,7 +136,7 @@ Future destructive CLI commands use the same policy: `MISP_ALLOW_DESTRUCTIVE=tru
 
 ### Untrusted MISP content
 
-Event titles, comments, IOC values, tags, export bodies, and similar fields are written by other organizations. Tool results and resources wrap them in `<untrusted_misp_data>` markers, any marker-like text inside the content is escaped, and tool descriptions and the server instructions tell the model to treat the content as data. Prompt arguments are delimited the same way.
+Event titles, comments, IOC values, tags, export bodies, and similar fields are written by other organizations. Tool results wrap them in `<untrusted_misp_data>` markers, the JSON resources carry them under an `untrusted_misp_data` key beside a notice so they stay valid JSON, any marker-like text inside the content is escaped, and tool descriptions and the server instructions tell the model to treat the content as data. Prompt arguments are delimited the same way.
 
 ### Bounds
 
@@ -167,7 +167,7 @@ Verified against the server source (42 tools, registered in `src/tools/`).
 
 | Tool | Description |
 |------|-------------|
-| `misp_list_event_reports` | List the reports attached to an event (no content). MISP lists reports across events, so the result is filtered to the event and bounded by `limit` (default 50, max 500) |
+| `misp_list_event_reports` | List the reports attached to an event (no content). The request is scoped to the event on the MISP side and the result is bounded by `limit` (default 50, max 500) |
 | `misp_get_event_report` | Read one report with its Markdown content (cut at 50,000 characters, and the result says so) |
 | `misp_add_event_report` | Add a Markdown report to an event (`name`, `content` up to 1 MB, optional `distribution` 0-3; omit it to use the event's own setting). Additive, no `confirm` flag, runs only when enabled in `MISP_ALLOWED_MUTATIONS` |
 
@@ -176,7 +176,7 @@ Verified against the server source (42 tools, registered in `src/tools/`).
 | Tool | Description |
 |------|-------------|
 | `misp_search_attributes` | Search IOCs across all events with type, category, and correlation filters. `limit` 1-500, `page` from 1; a full page adds a note naming the next page |
-| `misp_get_attribute` | Get one attribute by ID with its tags and correlations |
+| `misp_get_attribute` | Get one attribute by ID with its tags |
 | `misp_update_attribute` | Edit an attribute in place (`value`, `type`, `category`, `toIds`, `comment`, `disableCorrelation`, `distribution`); at least one field required, no `confirm` flag, runs only when enabled in `MISP_ALLOWED_MUTATIONS` |
 | `misp_add_attribute` | Add a single IOC to an event |
 | `misp_add_attributes_bulk` | Add multiple IOCs to an event in one operation |

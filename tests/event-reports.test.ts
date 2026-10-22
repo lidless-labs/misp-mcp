@@ -58,11 +58,11 @@ describe("MispClient event reports", () => {
     vi.mocked(fetch).mockReset();
   });
 
-  it("listEventReports uses GET /eventReports/index and filters by event", async () => {
+  it("listEventReports asks MISP for one event and still filters the result", async () => {
     respond([report(1, "3"), report(2, "4"), report(3, "3")]);
     const result = await client.listEventReports("3");
     expect(result.map((r) => r.id)).toEqual(["1", "3"]);
-    expect(lastCall()).toMatchObject({ url: "https://misp.example.com/eventReports/index", method: "GET" });
+    expect(lastCall()).toMatchObject({ url: "https://misp.example.com/eventReports/index/event_id:3", method: "GET" });
   });
 
   it("listEventReports tolerates unwrapped entries and non-array bodies", async () => {

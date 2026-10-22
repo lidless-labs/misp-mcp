@@ -6,6 +6,13 @@ import { ToolRegistry } from "../tool-registry.js";
 import { trustedText } from "../untrusted.js";
 import { requireConfirmation, requireHardConfirmation, createMutationPolicy, type MutationPolicy } from "../guards.js";
 
+const UPDATE_FIELD_NAMES = ["value", "type", "category", "toIds", "comment", "disableCorrelation", "distribution"] as const;
+
+const missingUpdateFields = (params: Record<string, unknown>): string | undefined =>
+  UPDATE_FIELD_NAMES.every((name) => params[name] === undefined)
+    ? `Provide at least one field to update: ${UPDATE_FIELD_NAMES.join(", ")}.`
+    : undefined;
+
 export function registerAttributeTools(
   server: McpServer,
   client: MispClient,
@@ -88,7 +95,7 @@ export function registerAttributeTools(
   // Get one attribute
   tools.add(
     "misp_get_attribute",
-    "Get one MISP attribute (IOC) by ID, including its tags and correlations",
+    "Get one MISP attribute (IOC) by ID, including its tags",
     {
       attributeId: z.string().describe("Attribute ID to retrieve"),
     },
@@ -110,14 +117,6 @@ export function registerAttributeTools(
           disable_correlation: a.disable_correlation,
           deleted: a.deleted,
           tags: (a.Tag || []).map((t) => t.name),
-          event_info: a.Event?.info,
-          correlations: a.RelatedAttribute
-            ? a.RelatedAttribute.map((r) => ({
-                value: r.value,
-                type: r.type,
-                event_id: r.event_id,
-              }))
-            : undefined,
         };
 
         return {
@@ -151,17 +150,9 @@ export function registerAttributeTools(
     async ({ attributeId, value, type, category, toIds, comment, disableCorrelation, distribution }) => {
       try {
         const fields = { value, type, category, to_ids: toIds, comment, disable_correlation: disableCorrelation, distribution };
-        if (Object.values(fields).every((v) => v === undefined)) {
-          return {
-            content: [
-              {
-                type: "text",
-                text:
-                  "Provide at least one field to update: value, type, category, toIds, comment, disableCorrelation, or distribution.",
-              },
-            ],
-            isError: true,
-          };
+        const missing = missingUpdateFields({ value, type, category, toIds, comment, disableCorrelation, distribution });
+        if (missing) {
+          return { content: [{ type: "text", text: missing }], isError: true };
         }
 
         const attribute = await client.updateAttribute(attributeId, fields);
@@ -195,7 +186,8 @@ export function registerAttributeTools(
           isError: true,
         };
       }
-    }
+    },
+    missingUpdateFields
   );
 
   // Add attribute
@@ -273,18 +265,12 @@ export function registerAttributeTools(
     },
     async ({ eventId, attributes, confirm }) => {
       try {
-        if (attributes.length > BULK_CONFIRM_THRESHOLD && confirm !== true) {
-          return {
-            content: [
-              {
-                type: "text",
-                text:
-                  `Refused: adding ${attributes.length} attributes in one call needs "confirm": true ` +
-                  `(bulk writes above ${BULK_CONFIRM_THRESHOLD} attributes). Pass "dryRun": true to preview first.`,
-              },
-            ],
-            isError: true,
-          };
+        if (attributes.length > BULK_CONFIRM_THRESHOLD) {
+          const guard = requireConfirmation(
+            confirm,
+            `adding ${attributes.length} attributes in one call (bulk writes above ${BULK_CONFIRM_THRESHOLD} attributes)`
+          );
+          if (guard) return guard;
         }
 
         const results: Array<{ value: string; type: string; id?: string; error?: string; skipped?: boolean }> = [];
