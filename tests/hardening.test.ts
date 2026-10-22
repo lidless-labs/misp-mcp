@@ -141,6 +141,7 @@ describe("mutation gate", () => {
     misp_tag_event: { eventId: "1", tag: "tlp:white" },
     misp_delete_event: { eventId: "1", confirm: true },
     misp_add_attribute: { eventId: "1", type: "domain", value: "bad.example" },
+    misp_update_attribute: { attributeId: "1", toIds: false },
     misp_add_attributes_bulk: { eventId: "1", attributes: [{ type: "domain", value: "bad.example" }] },
     misp_delete_attribute: { attributeId: "1", confirm: true },
     misp_add_sighting: { attributeId: "1", type: 0 },

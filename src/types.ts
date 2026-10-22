@@ -35,6 +35,7 @@ export interface MispAttribute {
   distribution: string;
   comment: string;
   deleted: boolean;
+  disable_correlation?: boolean;
   Tag?: MispTag[];
   Event?: Partial<MispEvent>;
   SharingGroup?: Record<string, unknown>;

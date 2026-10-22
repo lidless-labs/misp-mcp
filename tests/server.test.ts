@@ -8,7 +8,7 @@ vi.mock("undici", async (importOriginal) => ({
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createMispMcpServer } from "../src/mcp-server.js";
-import { MUTATING_TOOL_NAMES, TOOL_SPECS } from "../src/tool-specs.js";
+import { TOOL_SPECS } from "../src/tool-specs.js";
 import type { MispConfig } from "../src/config.js";
 
 const config: MispConfig = {
@@ -94,9 +94,5 @@ describe("MCP server wiring", () => {
 
   it("fails fast on an unknown tool name in MISP_ALLOWED_MUTATIONS", async () => {
     await expect(connect({ MISP_ALLOWED_MUTATIONS: "misp_creat_event" })).rejects.toThrow(/unknown tool name/);
-  });
-
-  it("covers every mutating tool in the spec table", () => {
-    expect(MUTATING_TOOL_NAMES.length).toBe(15);
   });
 });

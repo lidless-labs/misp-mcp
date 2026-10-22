@@ -6,6 +6,13 @@ import { ToolRegistry } from "../tool-registry.js";
 import { trustedText } from "../untrusted.js";
 import { requireConfirmation, requireHardConfirmation, createMutationPolicy, type MutationPolicy } from "../guards.js";
 
+const UPDATE_FIELD_NAMES = ["value", "type", "category", "toIds", "comment", "disableCorrelation", "distribution"] as const;
+
+const missingUpdateFields = (params: Record<string, unknown>): string | undefined =>
+  UPDATE_FIELD_NAMES.every((name) => params[name] === undefined)
+    ? `Provide at least one field to update: ${UPDATE_FIELD_NAMES.join(", ")}.`
+    : undefined;
+
 export function registerAttributeTools(
   server: McpServer,
   client: MispClient,
@@ -83,6 +90,111 @@ export function registerAttributeTools(
         };
       }
     }
+  );
+
+  // Get one attribute
+  tools.add(
+    "misp_get_attribute",
+    "Get one MISP attribute (IOC) by ID, including its tags",
+    {
+      attributeId: z.string().describe("Attribute ID to retrieve"),
+    },
+    async ({ attributeId }) => {
+      try {
+        const a = await client.getAttribute(attributeId);
+
+        const result = {
+          id: a.id,
+          event_id: a.event_id,
+          uuid: a.uuid,
+          type: a.type,
+          category: a.category,
+          value: a.value,
+          to_ids: a.to_ids,
+          comment: a.comment || undefined,
+          distribution: a.distribution,
+          timestamp: a.timestamp,
+          disable_correlation: a.disable_correlation,
+          deleted: a.deleted,
+          tags: (a.Tag || []).map((t) => t.name),
+        };
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (err) {
+        return {
+          content: [
+            { type: "text", text: `Error getting attribute: ${err instanceof Error ? err.message : String(err)}` },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // Update attribute
+  tools.add(
+    "misp_update_attribute",
+    "Edit selected fields of an existing MISP attribute in place (value, type, category, to_ids, comment, disable_correlation, distribution). Keeps the attribute's history, sightings, and correlations. At least one field is required; the owning event cannot be changed.",
+    {
+      attributeId: z.string().describe("Attribute ID to update"),
+      value: z.string().min(1).optional().describe("New IOC value"),
+      type: z.string().min(1).optional().describe("New attribute type"),
+      category: z.string().min(1).optional().describe("New category"),
+      toIds: z.boolean().optional().describe("Set or clear the IDS flag"),
+      comment: z.string().optional().describe("New comment (empty string clears it)"),
+      disableCorrelation: z.boolean().optional().describe("Disable or enable correlation for this attribute"),
+      distribution: z
+        .number()
+        .int()
+        .min(0)
+        .max(5)
+        .refine((level) => level !== 4, "Distribution 4 (sharing group) needs a sharing group ID, which this tool does not accept")
+        .optional()
+        .describe("Distribution level: 0 organisation only, 1 community, 2 connected communities, 3 all communities, 5 inherit from the event. Level 4 (sharing group) is not supported here."),
+    },
+    async ({ attributeId, value, type, category, toIds, comment, disableCorrelation, distribution }) => {
+      try {
+        const fields = { value, type, category, to_ids: toIds, comment, disable_correlation: disableCorrelation, distribution };
+        const missing = missingUpdateFields({ value, type, category, toIds, comment, disableCorrelation, distribution });
+        if (missing) {
+          return { content: [{ type: "text", text: missing }], isError: true };
+        }
+
+        const attribute = await client.updateAttribute(attributeId, fields);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  id: attribute.id,
+                  event_id: attribute.event_id,
+                  type: attribute.type,
+                  category: attribute.category,
+                  value: attribute.value,
+                  to_ids: attribute.to_ids,
+                  comment: attribute.comment || undefined,
+                  distribution: attribute.distribution,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (err) {
+        return {
+          content: [
+            { type: "text", text: `Error updating attribute: ${err instanceof Error ? err.message : String(err)}` },
+          ],
+          isError: true,
+        };
+      }
+    },
+    missingUpdateFields
   );
 
   // Add attribute

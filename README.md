@@ -20,13 +20,13 @@
   <img src="https://shieldcn.dev/badge/license-MIT-green.svg" alt="MIT license">
 </p>
 
-misp-mcp is a [Model Context Protocol](https://modelcontextprotocol.io/) server for [MISP](https://www.misp-project.org/), the open-source threat-intelligence sharing platform. It lets an LLM client such as Claude run IOC lookups, manage events, discover cross-event correlations, and export indicators directly against your own MISP instance. Unlike a generic HTTP wrapper, it ships 36 purpose-built tools, MISP-aware resources and prompts, and a confirmation gate that refuses destructive writes (delete, publish, untag) unless you explicitly approve them.
+misp-mcp is a [Model Context Protocol](https://modelcontextprotocol.io/) server for [MISP](https://www.misp-project.org/), the open-source threat-intelligence sharing platform. It lets an LLM client such as Claude run IOC lookups, manage events, discover cross-event correlations, and export indicators directly against your own MISP instance. Unlike a generic HTTP wrapper, it ships 38 purpose-built tools, MISP-aware resources and prompts, and a confirmation gate that refuses destructive writes (delete, publish, untag) unless you explicitly approve them.
 
 ## What it does
 
 misp-mcp connects an AI agent to a MISP (Malware Information Sharing Platform & Threat Intelligence Sharing) instance over MISP's REST API and exposes it as Model Context Protocol tools, resources, and prompts. Point it at your MISP server with an API key and an LLM can search threat-intelligence events, look up and add indicators of compromise (IOCs), correlate indicators across events, attach MITRE ATT&CK galaxy clusters, check warninglists for false positives, and export IOCs as Suricata, Snort, STIX, CSV, RPZ, or hash lists. The server is read-only by default: every tool that changes MISP state refuses to run until the operator names it in `MISP_ALLOWED_MUTATIONS`. Destructive and publishing operations (delete, publish, untag, disabling a feed, false-positive and expiration sightings) additionally need a per-call confirmation flag, and bulk writes need confirmation above a small size.
 
-- **36 MCP tools** covering events, attributes, correlations, tags, exports, sightings, warninglists, objects, galaxies, feeds, organisations, and server administration.
+- **38 MCP tools** covering events, attributes, correlations, tags, exports, sightings, warninglists, objects, galaxies, feeds, organisations, and server administration.
 - **3 MCP resources** for browsing attribute types, instance statistics, and available taxonomies.
 - **3 MCP prompts** for guided IOC investigation, incident event creation, and threat reporting.
 - **Read-only by default:** state-changing tools run only when listed in `MISP_ALLOWED_MUTATIONS`; each also accepts `dryRun: true` to preview a call without sending it.
@@ -113,7 +113,7 @@ The server starts read-only. Read tools always work. A tool that changes MISP st
 MISP_ALLOWED_MUTATIONS=misp_create_event,misp_add_attribute,misp_tag_event
 ```
 
-**State-changing tools (gated by `MISP_ALLOWED_MUTATIONS`):** `misp_create_event`, `misp_update_event`, `misp_publish_event`, `misp_tag_event`, `misp_delete_event`, `misp_add_attribute`, `misp_add_attributes_bulk`, `misp_delete_attribute`, `misp_add_sighting`, `misp_add_object`, `misp_delete_object`, `misp_attach_galaxy_cluster`, `misp_toggle_feed`, `misp_fetch_feed`, `misp_cache_feed`.
+**State-changing tools (gated by `MISP_ALLOWED_MUTATIONS`):** `misp_create_event`, `misp_update_event`, `misp_publish_event`, `misp_tag_event`, `misp_delete_event`, `misp_add_attribute`, `misp_update_attribute`, `misp_add_attributes_bulk`, `misp_delete_attribute`, `misp_add_sighting`, `misp_add_object`, `misp_delete_object`, `misp_attach_galaxy_cluster`, `misp_toggle_feed`, `misp_fetch_feed`, `misp_cache_feed`.
 
 Every one of them accepts `dryRun: true`. A dry run validates the arguments, reports whether the tool is currently allowed, and sends nothing to MISP, so it works in read-only mode too.
 
@@ -150,7 +150,7 @@ A guarded call returns an error (`isError: true`) with a `Refused:` message and 
 
 ## Tools
 
-Verified against the server source (36 tools, registered in `src/tools/`).
+Verified against the server source (38 tools, registered in `src/tools/`).
 
 ### Event tools (6)
 
@@ -163,11 +163,13 @@ Verified against the server source (36 tools, registered in `src/tools/`).
 | `misp_publish_event` | Publish an event to trigger alerts to sharing partners (requires `confirm:true`) |
 | `misp_tag_event` | Add or remove tags (TLP, MITRE ATT&CK, custom) from an event (removal requires `confirm:true`) |
 
-### Attribute tools (4)
+### Attribute tools (6)
 
 | Tool | Description |
 |------|-------------|
 | `misp_search_attributes` | Search IOCs across all events with type, category, and correlation filters. `limit` 1-500, `page` from 1; a full page adds a note naming the next page |
+| `misp_get_attribute` | Get one attribute by ID with its tags |
+| `misp_update_attribute` | Edit an attribute in place (`value`, `type`, `category`, `toIds`, `comment`, `disableCorrelation`, `distribution`); at least one field required, no `confirm` flag, runs only when enabled in `MISP_ALLOWED_MUTATIONS` |
 | `misp_add_attribute` | Add a single IOC to an event |
 | `misp_add_attributes_bulk` | Add multiple IOCs to an event in one operation |
 | `misp_delete_attribute` | Soft or hard delete an attribute (requires `confirm:true`; hard delete also requires `confirmHard:true`) |
