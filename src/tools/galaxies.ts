@@ -1,10 +1,18 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
+import { createMutationPolicy, type MutationPolicy } from "../guards.js";
+import { ToolRegistry } from "../tool-registry.js";
 
-export function registerGalaxyTools(server: McpServer, client: MispClient): void {
+export function registerGalaxyTools(
+  server: McpServer,
+  client: MispClient,
+  policy: MutationPolicy = createMutationPolicy()
+): void {
+  const tools = new ToolRegistry(server, client, policy);
+
   // List galaxies
-  server.tool(
+  tools.add(
     "misp_list_galaxies",
     "List available MISP galaxies (MITRE ATT&CK, threat actors, malware families, tools, etc.)",
     {
@@ -75,7 +83,7 @@ export function registerGalaxyTools(server: McpServer, client: MispClient): void
   );
 
   // Get galaxy clusters
-  server.tool(
+  tools.add(
     "misp_get_galaxy",
     "Get a specific galaxy with its clusters (e.g., MITRE ATT&CK techniques, threat actor profiles)",
     {
@@ -121,7 +129,7 @@ export function registerGalaxyTools(server: McpServer, client: MispClient): void
   );
 
   // Search galaxy clusters
-  server.tool(
+  tools.add(
     "misp_search_galaxy_clusters",
     "Search galaxy clusters by keyword (find specific MITRE ATT&CK techniques, threat actors, malware, etc.)",
     {
@@ -182,7 +190,7 @@ export function registerGalaxyTools(server: McpServer, client: MispClient): void
   );
 
   // Attach galaxy cluster to event
-  server.tool(
+  tools.add(
     "misp_attach_galaxy_cluster",
     "Attach a galaxy cluster (MITRE ATT&CK technique, threat actor, etc.) to an event or attribute",
     {

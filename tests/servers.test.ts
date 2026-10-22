@@ -9,6 +9,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MispClient } from "../src/client.js";
 import { registerServerTools } from "../src/tools/servers.js";
 import type { MispConfig } from "../src/config.js";
+import { ALLOW_ALL_MUTATIONS } from "../src/guards.js";
+import { createToolHarness } from "./helpers.js";
 
 const mockConfig: MispConfig = {
   url: "https://misp.example.com",
@@ -18,16 +20,7 @@ const mockConfig: MispConfig = {
 };
 
 function createTestHarness() {
-  const handlers = new Map<string, (params: Record<string, unknown>) => Promise<unknown>>();
-  const mockServer = {
-    tool: vi.fn((_name: string, _desc: unknown, schemaOrHandler: unknown, handler?: unknown) => {
-      const actualHandler = (handler || schemaOrHandler) as (params: Record<string, unknown>) => Promise<unknown>;
-      handlers.set(_name, actualHandler);
-    }),
-    resource: vi.fn(),
-    prompt: vi.fn(),
-  } as unknown as McpServer;
-  return { mockServer, handlers };
+  return createToolHarness();
 }
 
 function mockFetch(response: unknown, status = 200) {
@@ -45,7 +38,7 @@ describe("Server Tools", () => {
     const harness = createTestHarness();
     handlers = harness.handlers;
     const client = new MispClient(mockConfig);
-    registerServerTools(harness.mockServer, client);
+    registerServerTools(harness.mockServer, client, ALLOW_ALL_MUTATIONS);
   });
 
   describe("misp_server_status", () => {

@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { MispClient } from "./client.js";
+import { fenceUntrusted } from "./untrusted.js";
 
 export function registerResources(server: McpServer, client: MispClient): void {
   // Attribute types and categories
@@ -29,7 +30,7 @@ export function registerResources(server: McpServer, client: MispClient): void {
           {
             uri: "misp://types",
             mimeType: "application/json",
-            text: JSON.stringify(summary, null, 2),
+            text: fenceUntrusted(JSON.stringify(summary, null, 2)),
           },
         ],
       };
@@ -58,7 +59,7 @@ export function registerResources(server: McpServer, client: MispClient): void {
           {
             uri: "misp://statistics",
             mimeType: "application/json",
-            text: JSON.stringify(stats, null, 2),
+            text: fenceUntrusted(JSON.stringify(stats, null, 2)),
           },
         ],
       };
@@ -88,7 +89,7 @@ export function registerResources(server: McpServer, client: MispClient): void {
           {
             uri: "misp://taxonomies",
             mimeType: "application/json",
-            text: JSON.stringify(summary, null, 2),
+            text: fenceUntrusted(JSON.stringify(summary, null, 2)),
           },
         ],
       };

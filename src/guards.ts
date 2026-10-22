@@ -1,5 +1,11 @@
+import { MUTATING_TOOL_NAMES } from "./tool-specs.js";
+
 /**
  * Safety guards for destructive / state-changing MISP tools.
+ *
+ * Every tool that changes MISP state is also behind a mutation allowlist: the
+ * server is read-only unless the operator names the tools (or `*`) in
+ * MISP_ALLOWED_MUTATIONS.
  *
  * Destructive tools (delete, publish, untag) are gated behind an explicit
  * `confirm: true` argument by default. As an alternative for trusted
@@ -14,6 +20,50 @@
 /** True when destructive actions are pre-authorized via environment. */
 export function destructiveEnvOptIn(): boolean {
   return process.env.MISP_ALLOW_DESTRUCTIVE === "true";
+}
+
+/** Operator-controlled set of state-changing tools that may run. */
+export interface MutationPolicy {
+  readonly all: boolean;
+  readonly tools: ReadonlySet<string>;
+  allows(tool: string): boolean;
+}
+
+function buildPolicy(all: boolean, tools: Set<string>): MutationPolicy {
+  return { all, tools, allows: (tool) => all || tools.has(tool) };
+}
+
+/** Policy that permits every mutating tool. Intended for tests and trusted embedding. */
+export const ALLOW_ALL_MUTATIONS: MutationPolicy = buildPolicy(true, new Set());
+
+/**
+ * Parses MISP_ALLOWED_MUTATIONS: a comma-separated list of tool names, or `*`
+ * (also `all`) for every mutating tool. Unset or empty means read-only.
+ * Unknown names are rejected so a typo cannot silently leave a tool disabled.
+ */
+export function parseMutationAllowlist(raw: string | undefined): MutationPolicy {
+  const entries = (raw ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+
+  if (entries.some((entry) => entry === "*" || entry.toLowerCase() === "all")) {
+    return ALLOW_ALL_MUTATIONS;
+  }
+
+  const unknown = entries.filter((entry) => !MUTATING_TOOL_NAMES.includes(entry));
+  if (unknown.length > 0) {
+    throw new Error(
+      `MISP_ALLOWED_MUTATIONS contains unknown tool name(s): ${unknown.join(", ")}. ` +
+        `Valid names: ${MUTATING_TOOL_NAMES.join(", ")}.`
+    );
+  }
+
+  return buildPolicy(false, new Set(entries));
+}
+
+export function createMutationPolicy(env: NodeJS.ProcessEnv = process.env): MutationPolicy {
+  return parseMutationAllowlist(env.MISP_ALLOWED_MUTATIONS);
 }
 
 type GuardResult = {
@@ -65,5 +115,23 @@ export function requireHardConfirmation(
   return blocked(
     `Refused: ${action} is a PERMANENT, irreversible delete. ` +
       `Pass "confirmHard": true (in addition to "confirm": true) to proceed.`
+  );
+}
+
+/**
+ * Returns a blocking error result when the operator has not enabled this
+ * state-changing tool, or `null` when it may run.
+ */
+export function requireMutationAllowed(
+  policy: MutationPolicy,
+  tool: string
+): GuardResult | null {
+  if (policy.allows(tool)) {
+    return null;
+  }
+  return blocked(
+    `Refused: ${tool} changes MISP state and is not enabled on this server. ` +
+      `The operator must add "${tool}" to MISP_ALLOWED_MUTATIONS. ` +
+      `Pass "dryRun": true to preview the call without changing anything.`
   );
 }

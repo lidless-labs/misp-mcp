@@ -1,11 +1,19 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
-import { requireConfirmation } from "../guards.js";
+import { MAX_TAGS_PER_CALL } from "../limits.js";
+import { ToolRegistry } from "../tool-registry.js";
+import { requireConfirmation, createMutationPolicy, type MutationPolicy } from "../guards.js";
 
-export function registerEventTools(server: McpServer, client: MispClient): void {
+export function registerEventTools(
+  server: McpServer,
+  client: MispClient,
+  policy: MutationPolicy = createMutationPolicy()
+): void {
+  const tools = new ToolRegistry(server, client, policy);
+
   // Search events
-  server.tool(
+  tools.add(
     "misp_search_events",
     "Search MISP events by IOC value, type, tags, date range, or organization",
     {
@@ -79,7 +87,7 @@ export function registerEventTools(server: McpServer, client: MispClient): void 
   );
 
   // Get event details
-  server.tool(
+  tools.add(
     "misp_get_event",
     "Get full details of a specific MISP event including all attributes, objects, tags, and related events",
     {
@@ -149,7 +157,7 @@ export function registerEventTools(server: McpServer, client: MispClient): void 
   );
 
   // Create event
-  server.tool(
+  tools.add(
     "misp_create_event",
     "Create a new MISP event for documenting incidents or threat intelligence. Does not publish - use misp_publish_event separately.",
     {
@@ -161,7 +169,7 @@ export function registerEventTools(server: McpServer, client: MispClient): void 
       analysis: z.union([z.literal(0), z.literal(1), z.literal(2)])
         .describe("0=Initial, 1=Ongoing, 2=Complete"),
       date: z.string().optional().describe("Event date (YYYY-MM-DD)"),
-      tags: z.array(z.string()).optional().describe("Tags to apply"),
+      tags: z.array(z.string()).max(MAX_TAGS_PER_CALL).optional().describe(`Tags to apply (max ${MAX_TAGS_PER_CALL})`),
     },
     async (params) => {
       try {
@@ -205,7 +213,7 @@ export function registerEventTools(server: McpServer, client: MispClient): void 
   );
 
   // Update event
-  server.tool(
+  tools.add(
     "misp_update_event",
     "Update an existing MISP event's metadata (info, threat level, analysis status). Publishing is separate - use misp_publish_event.",
     {
@@ -254,7 +262,7 @@ export function registerEventTools(server: McpServer, client: MispClient): void 
   );
 
   // Publish event
-  server.tool(
+  tools.add(
     "misp_publish_event",
     "Publish a MISP event, triggering alerts and notifications to sharing partners. State-changing: requires confirm:true (or MISP_ALLOW_DESTRUCTIVE=true).",
     {
@@ -284,7 +292,7 @@ export function registerEventTools(server: McpServer, client: MispClient): void 
   );
 
   // Tag event
-  server.tool(
+  tools.add(
     "misp_tag_event",
     "Add or remove a tag from a MISP event (TLP, MITRE ATT&CK, custom tags). Removing a tag is destructive and requires confirm:true (or MISP_ALLOW_DESTRUCTIVE=true).",
     {

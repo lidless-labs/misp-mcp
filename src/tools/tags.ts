@@ -1,10 +1,18 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
+import { createMutationPolicy, type MutationPolicy } from "../guards.js";
+import { ToolRegistry } from "../tool-registry.js";
 
-export function registerTagTools(server: McpServer, client: MispClient): void {
+export function registerTagTools(
+  server: McpServer,
+  client: MispClient,
+  policy: MutationPolicy = createMutationPolicy()
+): void {
+  const tools = new ToolRegistry(server, client, policy);
+
   // List tags
-  server.tool(
+  tools.add(
     "misp_list_tags",
     "List available MISP tags with usage statistics",
     {
@@ -48,7 +56,7 @@ export function registerTagTools(server: McpServer, client: MispClient): void {
   );
 
   // Search by tag
-  server.tool(
+  tools.add(
     "misp_search_by_tag",
     "Search MISP events or attributes by tag (MITRE ATT&CK, TLP, custom tags)",
     {

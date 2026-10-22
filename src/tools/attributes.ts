@@ -1,11 +1,19 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
-import { requireConfirmation, requireHardConfirmation } from "../guards.js";
+import { BULK_CONFIRM_THRESHOLD, BULK_MAX_ATTRIBUTES, BULK_MAX_CONSECUTIVE_FAILURES, MAX_TAGS_PER_CALL } from "../limits.js";
+import { ToolRegistry } from "../tool-registry.js";
+import { requireConfirmation, requireHardConfirmation, createMutationPolicy, type MutationPolicy } from "../guards.js";
 
-export function registerAttributeTools(server: McpServer, client: MispClient): void {
+export function registerAttributeTools(
+  server: McpServer,
+  client: MispClient,
+  policy: MutationPolicy = createMutationPolicy()
+): void {
+  const tools = new ToolRegistry(server, client, policy);
+
   // Search attributes
-  server.tool(
+  tools.add(
     "misp_search_attributes",
     "Search for specific attributes (IOCs) across all MISP events",
     {
@@ -71,7 +79,7 @@ export function registerAttributeTools(server: McpServer, client: MispClient): v
   );
 
   // Add attribute
-  server.tool(
+  tools.add(
     "misp_add_attribute",
     "Add an IOC/attribute to a MISP event",
     {
@@ -82,7 +90,7 @@ export function registerAttributeTools(server: McpServer, client: MispClient): v
       toIds: z.boolean().optional().describe("Flag for IDS export (default true for applicable types)"),
       comment: z.string().optional().describe("Context/notes about this IOC"),
       distribution: z.number().optional().describe("Distribution level (0-4)"),
-      tags: z.array(z.string()).optional().describe("Tags to apply to the attribute"),
+      tags: z.array(z.string()).max(MAX_TAGS_PER_CALL).optional().describe(`Tags to apply to the attribute (max ${MAX_TAGS_PER_CALL})`),
     },
     async (params) => {
       try {
@@ -127,9 +135,9 @@ export function registerAttributeTools(server: McpServer, client: MispClient): v
   );
 
   // Bulk add attributes
-  server.tool(
+  tools.add(
     "misp_add_attributes_bulk",
-    "Add multiple attributes (IOCs) to a MISP event at once",
+    `Add multiple attributes (IOCs) to a MISP event at once (max ${BULK_MAX_ATTRIBUTES} per call; more than ${BULK_CONFIRM_THRESHOLD} requires confirm:true). Each attribute is a separate MISP request, so a failure partway leaves the event partially updated; the result lists what succeeded, failed, and was skipped. Use dryRun:true to preview.`,
     {
       eventId: z.string().describe("Event ID to add attributes to"),
       attributes: z.array(
@@ -140,13 +148,33 @@ export function registerAttributeTools(server: McpServer, client: MispClient): v
           toIds: z.boolean().optional().describe("IDS flag"),
           comment: z.string().optional().describe("Comment"),
         })
-      ).describe("Array of attributes to add"),
+      ).min(1).max(BULK_MAX_ATTRIBUTES).describe(`Array of attributes to add (1-${BULK_MAX_ATTRIBUTES})`),
+      confirm: z.boolean().optional().describe(`Must be true when adding more than ${BULK_CONFIRM_THRESHOLD} attributes`),
     },
-    async ({ eventId, attributes }) => {
+    async ({ eventId, attributes, confirm }) => {
       try {
-        const results: Array<{ value: string; type: string; id?: string; error?: string }> = [];
+        if (attributes.length > BULK_CONFIRM_THRESHOLD && confirm !== true) {
+          return {
+            content: [
+              {
+                type: "text",
+                text:
+                  `Refused: adding ${attributes.length} attributes in one call needs "confirm": true ` +
+                  `(bulk writes above ${BULK_CONFIRM_THRESHOLD} attributes). Pass "dryRun": true to preview first.`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const results: Array<{ value: string; type: string; id?: string; error?: string; skipped?: boolean }> = [];
+        let consecutiveFailures = 0;
 
         for (const attr of attributes) {
+          if (consecutiveFailures >= BULK_MAX_CONSECUTIVE_FAILURES) {
+            results.push({ value: attr.value, type: attr.type, skipped: true });
+            continue;
+          }
           try {
             const created = await client.addAttribute(eventId, {
               type: attr.type,
@@ -155,12 +183,14 @@ export function registerAttributeTools(server: McpServer, client: MispClient): v
               to_ids: attr.toIds,
               comment: attr.comment,
             });
+            consecutiveFailures = 0;
             results.push({
               value: attr.value,
               type: attr.type,
               id: created.id,
             });
           } catch (err) {
+            consecutiveFailures++;
             results.push({
               value: attr.value,
               type: attr.type,
@@ -171,6 +201,19 @@ export function registerAttributeTools(server: McpServer, client: MispClient): v
 
         const succeeded = results.filter((r) => r.id);
         const failed = results.filter((r) => r.error);
+        const skipped = results.filter((r) => r.skipped);
+        const warnings: string[] = [];
+        if (failed.length > 0 || skipped.length > 0) {
+          warnings.push(
+            `Partial result: ${succeeded.length} of ${attributes.length} attributes were added to event ${eventId}. ` +
+              "The ones that succeeded were not rolled back."
+          );
+        }
+        if (skipped.length > 0) {
+          warnings.push(
+            `Stopped after ${BULK_MAX_CONSECUTIVE_FAILURES} consecutive failures; ${skipped.length} attributes were not attempted.`
+          );
+        }
 
         return {
           content: [
@@ -181,6 +224,8 @@ export function registerAttributeTools(server: McpServer, client: MispClient): v
                   total: attributes.length,
                   succeeded: succeeded.length,
                   failed: failed.length,
+                  skipped: skipped.length,
+                  warnings: warnings.length > 0 ? warnings : undefined,
                   results,
                 },
                 null,
@@ -201,7 +246,7 @@ export function registerAttributeTools(server: McpServer, client: MispClient): v
   );
 
   // Delete attribute
-  server.tool(
+  tools.add(
     "misp_delete_attribute",
     "Delete (soft or hard) an attribute from MISP. Destructive: requires confirm:true (or MISP_ALLOW_DESTRUCTIVE=true); hard delete also requires confirmHard:true.",
     {

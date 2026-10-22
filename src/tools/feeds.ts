@@ -1,10 +1,18 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
+import { createMutationPolicy, requireConfirmation, type MutationPolicy } from "../guards.js";
+import { ToolRegistry } from "../tool-registry.js";
 
-export function registerFeedTools(server: McpServer, client: MispClient): void {
+export function registerFeedTools(
+  server: McpServer,
+  client: MispClient,
+  policy: MutationPolicy = createMutationPolicy()
+): void {
+  const tools = new ToolRegistry(server, client, policy);
+
   // List feeds
-  server.tool(
+  tools.add(
     "misp_list_feeds",
     "List configured MISP feeds (threat intel sources, IOC feeds, etc.)",
     {
@@ -57,15 +65,21 @@ export function registerFeedTools(server: McpServer, client: MispClient): void {
   );
 
   // Enable/disable feed
-  server.tool(
+  tools.add(
     "misp_toggle_feed",
-    "Enable or disable a MISP feed",
+    "Enable or disable a MISP feed. Disabling a feed stops intelligence ingestion and requires confirm:true (or MISP_ALLOW_DESTRUCTIVE=true).",
     {
       feedId: z.string().describe("Feed ID"),
       enable: z.boolean().describe("true to enable, false to disable"),
+      confirm: z.boolean().optional().describe("Must be true to disable a feed (unless MISP_ALLOW_DESTRUCTIVE=true). Ignored when enabling."),
     },
-    async ({ feedId, enable }) => {
+    async ({ feedId, enable, confirm }) => {
       try {
+        if (!enable) {
+          const guard = requireConfirmation(confirm, `disabling feed ${feedId}`);
+          if (guard) return guard;
+        }
+
         await client.toggleFeed(feedId, enable);
         return {
           content: [
@@ -90,7 +104,7 @@ export function registerFeedTools(server: McpServer, client: MispClient): void {
   );
 
   // Fetch feed data
-  server.tool(
+  tools.add(
     "misp_fetch_feed",
     "Trigger a fetch/pull of data from a specific MISP feed",
     {
@@ -122,7 +136,7 @@ export function registerFeedTools(server: McpServer, client: MispClient): void {
   );
 
   // Cache feed
-  server.tool(
+  tools.add(
     "misp_cache_feed",
     "Cache feed data locally for correlation without creating events",
     {

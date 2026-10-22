@@ -3,6 +3,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { getConfig, type MispConfig } from "./config.js";
 import { MispClient } from "./client.js";
+import { createMutationPolicy, type MutationPolicy } from "./guards.js";
+import { UNTRUSTED_NOTICE } from "./untrusted.js";
 import { registerEventTools } from "./tools/events.js";
 import { registerAttributeTools } from "./tools/attributes.js";
 import { registerCorrelationTools } from "./tools/correlation.js";
@@ -25,30 +27,40 @@ const packageJson = JSON.parse(
 export interface MispServerDeps {
   config?: MispConfig;
   client?: MispClient;
+  /** Which state-changing tools may run. Defaults to MISP_ALLOWED_MUTATIONS (read-only when unset). */
+  mutations?: MutationPolicy;
 }
 
 export function createMispMcpServer(deps: MispServerDeps = {}): McpServer {
   const config = deps.config ?? getConfig();
   const client = deps.client ?? new MispClient(config);
-  const server = new McpServer({
-    name: "misp-mcp",
-    version: packageJson.version ?? "0.0.0",
-    description:
-      "MCP server for MISP threat intelligence platform - IOC lookups, event management, correlation discovery, and intelligence enrichment",
-  });
+  const mutations = deps.mutations ?? createMutationPolicy();
+  const server = new McpServer(
+    {
+      name: "misp-mcp",
+      version: packageJson.version ?? "0.0.0",
+      description:
+        "MCP server for MISP threat intelligence platform - IOC lookups, event management, correlation discovery, and intelligence enrichment",
+    },
+    {
+      instructions:
+        `${UNTRUSTED_NOTICE} ` +
+        "Tools that change MISP state run only when the operator has enabled them; a refusal is final for that call.",
+    }
+  );
 
-  registerEventTools(server, client);
-  registerAttributeTools(server, client);
-  registerCorrelationTools(server, client);
-  registerTagTools(server, client);
-  registerExportTools(server, client);
-  registerSightingTools(server, client);
-  registerWarninglistTools(server, client);
-  registerObjectTools(server, client);
-  registerGalaxyTools(server, client);
-  registerFeedTools(server, client);
-  registerOrganisationTools(server, client);
-  registerServerTools(server, client);
+  registerEventTools(server, client, mutations);
+  registerAttributeTools(server, client, mutations);
+  registerCorrelationTools(server, client, mutations);
+  registerTagTools(server, client, mutations);
+  registerExportTools(server, client, mutations);
+  registerSightingTools(server, client, mutations);
+  registerWarninglistTools(server, client, mutations);
+  registerObjectTools(server, client, mutations);
+  registerGalaxyTools(server, client, mutations);
+  registerFeedTools(server, client, mutations);
+  registerOrganisationTools(server, client, mutations);
+  registerServerTools(server, client, mutations);
   registerResources(server, client);
   registerPrompts(server);
 

@@ -1,13 +1,18 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
+import { createMutationPolicy, type MutationPolicy } from "../guards.js";
+import { ToolRegistry } from "../tool-registry.js";
 
 export function registerOrganisationTools(
   server: McpServer,
-  client: MispClient
+  client: MispClient,
+  policy: MutationPolicy = createMutationPolicy()
 ): void {
+  const tools = new ToolRegistry(server, client, policy);
+
   // List organisations
-  server.tool(
+  tools.add(
     "misp_list_organisations",
     "List MISP organisations (local and remote sharing partners)",
     {
@@ -55,7 +60,7 @@ export function registerOrganisationTools(
   );
 
   // Get organisation details
-  server.tool(
+  tools.add(
     "misp_get_organisation",
     "Get details of a specific MISP organisation",
     {

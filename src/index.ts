@@ -6,3 +6,9 @@ export {
   requireDestructiveCliGate,
   requireHardDeleteCliGate,
 } from "./cli-safety.js";
+export {
+  ALLOW_ALL_MUTATIONS,
+  createMutationPolicy,
+  parseMutationAllowlist,
+  type MutationPolicy,
+} from "./guards.js";

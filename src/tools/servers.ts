@@ -1,14 +1,18 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { MispClient } from "../client.js";
-import { requireConfirmation } from "../guards.js";
+import { ToolRegistry } from "../tool-registry.js";
+import { requireConfirmation, createMutationPolicy, type MutationPolicy } from "../guards.js";
 
 export function registerServerTools(
   server: McpServer,
-  client: MispClient
+  client: MispClient,
+  policy: MutationPolicy = createMutationPolicy()
 ): void {
+  const tools = new ToolRegistry(server, client, policy);
+
   // Server status/version
-  server.tool(
+  tools.add(
     "misp_server_status",
     "Get MISP server version, status, and diagnostic information",
     {},
@@ -54,7 +58,7 @@ export function registerServerTools(
   );
 
   // List sharing groups
-  server.tool(
+  tools.add(
     "misp_list_sharing_groups",
     "List MISP sharing groups for controlled event distribution",
     {},
@@ -101,7 +105,7 @@ export function registerServerTools(
   );
 
   // Delete event
-  server.tool(
+  tools.add(
     "misp_delete_event",
     "Delete a MISP event (requires appropriate permissions). Destructive: requires confirm:true (or MISP_ALLOW_DESTRUCTIVE=true).",
     {
