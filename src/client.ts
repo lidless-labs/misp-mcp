@@ -462,6 +462,45 @@ export class MispClient {
     return data.Attribute;
   }
 
+  async getAttribute(attributeId: string): Promise<MispAttribute> {
+    const data = await this.request<{ Attribute: MispAttribute }>(
+      "GET",
+      `/attributes/view/${encodeId(attributeId, "attributeId")}`
+    );
+    return data.Attribute;
+  }
+
+  /** Edits an attribute in place. The owning event cannot be changed. */
+  async updateAttribute(
+    attributeId: string,
+    params: {
+      value?: string;
+      type?: string;
+      category?: string;
+      to_ids?: boolean;
+      comment?: string;
+      disable_correlation?: boolean;
+      distribution?: number;
+    }
+  ): Promise<MispAttribute> {
+    const attrData: Record<string, unknown> = {};
+    if (params.value !== undefined) attrData.value = params.value;
+    if (params.type !== undefined) attrData.type = params.type;
+    if (params.category !== undefined) attrData.category = params.category;
+    if (params.to_ids !== undefined) attrData.to_ids = params.to_ids;
+    if (params.comment !== undefined) attrData.comment = params.comment;
+    if (params.disable_correlation !== undefined)
+      attrData.disable_correlation = params.disable_correlation;
+    if (params.distribution !== undefined) attrData.distribution = params.distribution;
+
+    const data = await this.request<{ Attribute: MispAttribute }>(
+      "PUT",
+      `/attributes/edit/${encodeId(attributeId, "attributeId")}`,
+      attrData
+    );
+    return data.Attribute;
+  }
+
   async deleteAttribute(
     attributeId: string,
     hard = false

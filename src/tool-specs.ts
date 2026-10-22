@@ -25,6 +25,8 @@ export const TOOL_SPECS: Readonly<Record<string, ToolSpec>> = {
 
   // Attributes
   misp_search_attributes: { mutating: false },
+  misp_get_attribute: { mutating: false },
+  misp_update_attribute: { mutating: true, destructive: true, idempotent: true },
   misp_add_attribute: { mutating: true, destructive: false, idempotent: false },
   misp_add_attributes_bulk: { mutating: true, destructive: false, idempotent: false },
   misp_delete_attribute: { mutating: true, destructive: true, idempotent: true },

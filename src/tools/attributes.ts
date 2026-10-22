@@ -85,6 +85,119 @@ export function registerAttributeTools(
     }
   );
 
+  // Get one attribute
+  tools.add(
+    "misp_get_attribute",
+    "Get one MISP attribute (IOC) by ID, including its tags and correlations",
+    {
+      attributeId: z.string().describe("Attribute ID to retrieve"),
+    },
+    async ({ attributeId }) => {
+      try {
+        const a = await client.getAttribute(attributeId);
+
+        const result = {
+          id: a.id,
+          event_id: a.event_id,
+          uuid: a.uuid,
+          type: a.type,
+          category: a.category,
+          value: a.value,
+          to_ids: a.to_ids,
+          comment: a.comment || undefined,
+          distribution: a.distribution,
+          timestamp: a.timestamp,
+          disable_correlation: a.disable_correlation,
+          deleted: a.deleted,
+          tags: (a.Tag || []).map((t) => t.name),
+          event_info: a.Event?.info,
+          correlations: a.RelatedAttribute
+            ? a.RelatedAttribute.map((r) => ({
+                value: r.value,
+                type: r.type,
+                event_id: r.event_id,
+              }))
+            : undefined,
+        };
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (err) {
+        return {
+          content: [
+            { type: "text", text: `Error getting attribute: ${err instanceof Error ? err.message : String(err)}` },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // Update attribute
+  tools.add(
+    "misp_update_attribute",
+    "Edit selected fields of an existing MISP attribute in place (value, type, category, to_ids, comment, disable_correlation, distribution). Keeps the attribute's history, sightings, and correlations. At least one field is required; the owning event cannot be changed.",
+    {
+      attributeId: z.string().describe("Attribute ID to update"),
+      value: z.string().min(1).optional().describe("New IOC value"),
+      type: z.string().min(1).optional().describe("New attribute type"),
+      category: z.string().min(1).optional().describe("New category"),
+      toIds: z.boolean().optional().describe("Set or clear the IDS flag"),
+      comment: z.string().optional().describe("New comment (empty string clears it)"),
+      disableCorrelation: z.boolean().optional().describe("Disable or enable correlation for this attribute"),
+      distribution: z.number().int().min(0).max(4).optional().describe("Distribution level (0-4)"),
+    },
+    async ({ attributeId, value, type, category, toIds, comment, disableCorrelation, distribution }) => {
+      try {
+        const fields = { value, type, category, to_ids: toIds, comment, disable_correlation: disableCorrelation, distribution };
+        if (Object.values(fields).every((v) => v === undefined)) {
+          return {
+            content: [
+              {
+                type: "text",
+                text:
+                  "Provide at least one field to update: value, type, category, toIds, comment, disableCorrelation, or distribution.",
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const attribute = await client.updateAttribute(attributeId, fields);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  id: attribute.id,
+                  event_id: attribute.event_id,
+                  type: attribute.type,
+                  category: attribute.category,
+                  value: attribute.value,
+                  to_ids: attribute.to_ids,
+                  comment: attribute.comment || undefined,
+                  distribution: attribute.distribution,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (err) {
+        return {
+          content: [
+            { type: "text", text: `Error updating attribute: ${err instanceof Error ? err.message : String(err)}` },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
   // Add attribute
   tools.add(
     "misp_add_attribute",
