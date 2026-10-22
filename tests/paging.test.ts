@@ -98,11 +98,12 @@ describe("limit and page validation", () => {
     expect(schema.safeParse({ limit: 2.5 }).success).toBe(false);
   });
 
-  it("bounds distribution to 0-4", () => {
+  it("bounds distribution to 0-5, where 5 inherits the event setting", () => {
     const add = schemaOf("misp_add_attribute");
     const base = { eventId: "1", type: "domain", value: "x.example" };
     expect(add.safeParse({ ...base, distribution: 4 }).success).toBe(true);
-    expect(add.safeParse({ ...base, distribution: 5 }).success).toBe(false);
+    expect(add.safeParse({ ...base, distribution: 5 }).success).toBe(true);
+    expect(add.safeParse({ ...base, distribution: 6 }).success).toBe(false);
     expect(add.safeParse({ ...base, distribution: 1.5 }).success).toBe(false);
   });
 });

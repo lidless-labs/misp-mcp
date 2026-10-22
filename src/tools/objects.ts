@@ -133,9 +133,9 @@ export function registerObjectTools(
         .number()
         .int()
         .min(0)
-        .max(4)
+        .max(5)
         .optional()
-        .describe("Distribution level (0-4)"),
+        .describe("Distribution level (0-4, or 5 to inherit from the event)"),
     },
     async ({ eventId, templateName, attributes, comment, distribution }) => {
       try {
