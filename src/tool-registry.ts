@@ -145,13 +145,13 @@ export class ToolRegistry {
     }
   }
 
-  /** Fences successful output and redacts secrets from error output. */
+  /** Fences output, and redacts secrets from error output before fencing it. */
   private finish(result: CallToolResult): CallToolResult {
     const content = result.content.map((block) => {
       if (block.type !== "text") return block;
       return {
         ...block,
-        text: result.isError ? this.client.redact(block.text) : fenceUntrusted(block.text),
+        text: fenceUntrusted(result.isError ? this.client.redact(block.text) : block.text),
       };
     });
     return { ...result, content };
