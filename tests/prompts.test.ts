@@ -80,8 +80,9 @@ describe("resource fencing", () => {
     expect(callbacks).toHaveLength(3);
     for (const cb of callbacks) {
       const text = (await cb()).contents[0].text;
-      expect(text.startsWith("<untrusted_misp_data>\n")).toBe(true);
-      expect(text.endsWith("\n</untrusted_misp_data>")).toBe(true);
+      const doc = JSON.parse(text) as Record<string, unknown>;
+      expect(typeof doc.notice).toBe("string");
+      expect(doc).toHaveProperty("untrusted_misp_data");
     }
   });
 });
