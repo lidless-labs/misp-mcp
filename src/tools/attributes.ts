@@ -96,7 +96,7 @@ export function registerAttributeTools(
       category: z.string().optional().describe("Category (auto-determined from type if omitted)"),
       toIds: z.boolean().optional().describe("Flag for IDS export (default true for applicable types)"),
       comment: z.string().optional().describe("Context/notes about this IOC"),
-      distribution: z.number().int().min(0).max(4).optional().describe("Distribution level (0-4)"),
+      distribution: z.number().int().min(0).max(5).optional().describe("Distribution level (0-4, or 5 to inherit from the event)"),
       tags: z.array(z.string()).max(MAX_TAGS_PER_CALL).optional().describe(`Tags to apply to the attribute (max ${MAX_TAGS_PER_CALL})`),
     },
     async (params) => {
