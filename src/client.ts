@@ -561,6 +561,11 @@ export class MispClient {
 
   /** Lists every sighting recorded on an event. The endpoint is not paginated. */
   async listSightings(eventId: string): Promise<MispSighting[]> {
+    // MISP treats a zero index as "no event filter" and returns sightings from
+    // every event the caller can see, so refuse it before building the path.
+    if (/^0+$/.test(eventId)) {
+      throw new Error(`Invalid eventId: ${JSON.stringify(eventId)}`);
+    }
     const data = await this.request<Array<{ Sighting?: MispSighting } & Partial<MispSighting>>>(
       "GET",
       `/sightings/index/${encodeId(eventId, "eventId")}`

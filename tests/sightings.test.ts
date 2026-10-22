@@ -73,6 +73,11 @@ describe("MispClient.listSightings", () => {
     await expect(client.listSightings("3/../4")).rejects.toThrow(/Invalid eventId/);
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
+
+  it.each(["0", "00"])("rejects event id %j, which MISP treats as no event filter", async (id) => {
+    await expect(client.listSightings(id)).rejects.toThrow(/Invalid eventId/);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
 });
 
 describe("misp_list_sightings", () => {
