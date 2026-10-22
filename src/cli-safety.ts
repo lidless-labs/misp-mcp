@@ -1,13 +1,10 @@
+import { destructiveEnvOptIn } from "./guards.js";
+
 export class CliGateError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "CliGateError";
   }
-}
-
-function envEnabled(value: string | undefined): boolean {
-  const normalized = value?.trim().toLowerCase();
-  return normalized === "1" || normalized === "true";
 }
 
 export function requireDestructiveCliGate(options: {
@@ -17,7 +14,7 @@ export function requireDestructiveCliGate(options: {
   destructive?: boolean;
 }): void {
   const env = options.env ?? process.env;
-  if (!envEnabled(env.MISP_ALLOW_DESTRUCTIVE)) {
+  if (!destructiveEnvOptIn(env)) {
     throw new CliGateError(
       `${options.commandName} is disabled. Set MISP_ALLOW_DESTRUCTIVE=true and pass --confirm --destructive to run destructive CLI commands.`,
     );

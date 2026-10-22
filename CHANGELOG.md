@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- `MISP_VERIFY_SSL` and `MISP_ALLOW_DESTRUCTIVE` now use one boolean parser (`true`, `1`, `false`, `0`, case-insensitive, trimmed; unset or empty keeps the default). Any other value is rejected at startup with an error naming the variable, where previously `MISP_VERIFY_SSL=FALSE` or `0` silently kept verification on and `MISP_ALLOW_DESTRUCTIVE=1` enabled only the CLI path. The MCP guard and CLI gate now agree (#21).
 - **Breaking:** the server is read-only by default. Every state-changing tool now refuses to run unless it is listed in the new `MISP_ALLOWED_MUTATIONS` environment variable (comma-separated tool names, or `*`). Existing setups that create events, add attributes, tag, sight, attach clusters, or manage feeds must set it. Unknown names fail at startup.
 - All state-changing tools accept `dryRun: true`, which validates and previews the call without contacting MISP and works in read-only mode.
 - `misp_toggle_feed` with `enable: false`, `misp_add_sighting` with type 1 or 2, and `misp_add_attributes_bulk` with more than 10 attributes now require `confirm: true` (or `MISP_ALLOW_DESTRUCTIVE=true`).

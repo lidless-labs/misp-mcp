@@ -1,3 +1,6 @@
+import { parseBooleanEnv } from "./env.js";
+import { destructiveEnvOptIn } from "./guards.js";
+
 /** Maximum allowed MISP_TIMEOUT value in seconds (1 hour). */
 export const MISP_TIMEOUT_MAX_SECONDS = 3600;
 
@@ -97,7 +100,9 @@ export function getConfig(): MispConfig {
     throw new Error("MISP_API_KEY environment variable is required");
   }
 
-  const verifySsl = process.env.MISP_VERIFY_SSL !== "false";
+  const verifySsl = parseBooleanEnv("MISP_VERIFY_SSL", process.env.MISP_VERIFY_SSL, true);
+  // Validate at startup so a mistyped safety flag stops the process.
+  destructiveEnvOptIn();
   const timeout = parseTimeoutSeconds(process.env.MISP_TIMEOUT) * 1000;
 
   return {
