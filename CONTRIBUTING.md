@@ -54,7 +54,7 @@ To iterate on the server live, `npm run dev` runs the TypeScript entry point und
 
 1. Add the handler to the right family module under `src/tools/` (or create a new `register*Tools` module and wire it into `src/mcp-server.ts`). Register it with `tools.add(...)` from the module's `ToolRegistry`.
 2. Define the input schema with Zod and write a clear, model-readable `description`. Bound every array and numeric input that fans out into MISP requests (see `src/limits.ts`).
-3. Declare the tool in `src/tool-specs.ts`: read-only, or mutating with accurate `destructive` and `idempotent` values. Mutating tools are automatically gated by `MISP_ALLOWED_MUTATIONS` and get `dryRun`; if the tool also deletes or disables data, require `confirm` (and `confirmHard` for permanent deletes) through `src/guards.ts`.
+3. Declare the tool in `src/tool-specs.ts`: read-only, or mutating with accurate `destructive` and `idempotent` values. Mutating tools are automatically gated by `MISP_ALLOWED_MUTATIONS` and get `dryRun`; if the handler enforces a rule the schema cannot express (such as "one of two fields is required"), pass it as the `preflight` argument to `tools.add` so a dry run rejects the same calls; if the tool also deletes or disables data, require `confirm` (and `confirmHard` for permanent deletes) through `src/guards.ts`.
 4. Add a unit test, and an integration test if it touches a real MISP endpoint.
 5. Add a row to the matching tool table in `README.md` and the tool count in the header.
 6. Add a `CHANGELOG.md` entry under `## [Unreleased]`.

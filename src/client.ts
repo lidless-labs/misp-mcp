@@ -28,7 +28,7 @@ import type {
 
 // Allow numeric IDs or UUIDs (and any combination of [A-Za-z0-9_-]). Reject
 // anything that could alter the URL path (slashes, query/fragment chars, etc).
-const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+export const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 function encodeId(id: string, kind = "id"): string {
   if (!ID_PATTERN.test(id)) {
     throw new Error(`Invalid ${kind}: ${JSON.stringify(id)}`);

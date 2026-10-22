@@ -49,8 +49,6 @@ const attribute = {
   timestamp: "1700000000",
   deleted: false,
   Tag: [{ id: "1", name: "tlp:amber" }],
-  Event: { info: "Phishing wave" },
-  RelatedAttribute: [{ id: "9", value: "bad.example", type: "domain", event_id: "4" }],
 };
 
 describe("MispClient attribute read and edit", () => {
@@ -114,12 +112,12 @@ describe("misp_get_attribute and misp_update_attribute tools", () => {
     vi.mocked(fetch).mockReset();
   });
 
-  it("misp_get_attribute returns tags and correlations", async () => {
+  it("misp_get_attribute returns the attribute and its tags", async () => {
     respond({ Attribute: attribute });
     const result = (await setup().handlers.get("misp_get_attribute")!({ attributeId: "7" })) as TextResult;
     const data = JSON.parse(result.content[0].text);
-    expect(data).toMatchObject({ id: "7", event_id: "3", value: "bad.example", tags: ["tlp:amber"], event_info: "Phishing wave" });
-    expect(data.correlations).toEqual([{ value: "bad.example", type: "domain", event_id: "4" }]);
+    expect(data).toMatchObject({ id: "7", event_id: "3", value: "bad.example", tags: ["tlp:amber"] });
+    expect(data).not.toHaveProperty("correlations");
   });
 
   it("misp_get_attribute reports an upstream error", async () => {
@@ -139,6 +137,13 @@ describe("misp_get_attribute and misp_update_attribute tools", () => {
 
   it("rejects an empty update before sending a request", async () => {
     const result = (await setup().handlers.get("misp_update_attribute")!({ attributeId: "7" })) as TextResult;
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("at least one field");
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it("dryRun of an empty update is rejected like the real call", async () => {
+    const result = (await setup().handlers.get("misp_update_attribute")!({ attributeId: "7", dryRun: true })) as TextResult;
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("at least one field");
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
