@@ -100,7 +100,7 @@ export class ToolRegistry {
       (async (args, extra) => {
         const params = args as Record<string, unknown>;
         if (params.dryRun === true) {
-          return dryRunPreview(name, params, this.policy.allows(name));
+          return this.finish(dryRunPreview(name, params, this.policy.allows(name)));
         }
         const refusal = requireMutationAllowed(this.policy, name);
         if (refusal) return refusal;

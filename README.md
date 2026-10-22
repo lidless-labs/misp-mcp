@@ -134,7 +134,7 @@ Future destructive CLI commands use the same policy: `MISP_ALLOW_DESTRUCTIVE=tru
 
 ### Untrusted MISP content
 
-Event titles, comments, IOC values, tags, export bodies, and similar fields are written by other organizations. Tool results and resources wrap them in `<untrusted_misp_data>` markers, any marker-like text inside the content is escaped, and tool descriptions and the server instructions tell the model to treat the content as data. Prompt arguments are delimited the same way.
+Event titles, comments, IOC values, tags, export bodies, and similar fields are written by other organizations. Tool results wrap them in `<untrusted_misp_data>` markers, the JSON resources carry them under an `untrusted_misp_data` key beside a notice so they stay valid JSON, any marker-like text inside the content is escaped, and tool descriptions and the server instructions tell the model to treat the content as data. Prompt arguments are delimited the same way.
 
 ### Bounds
 
