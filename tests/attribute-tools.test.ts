@@ -165,7 +165,7 @@ describe("misp_get_attribute and misp_update_attribute tools", () => {
   it("declares accurate annotations", () => {
     const { registrations } = setup();
     expect(registrations.get("misp_get_attribute")!.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false, idempotentHint: true });
-    expect(registrations.get("misp_update_attribute")!.annotations).toMatchObject({ readOnlyHint: false, idempotentHint: true });
+    expect(registrations.get("misp_update_attribute")!.annotations).toMatchObject({ readOnlyHint: false, idempotentHint: false });
   });
 
   it("validates the update schema", () => {

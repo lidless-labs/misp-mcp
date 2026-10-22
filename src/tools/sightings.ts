@@ -23,7 +23,7 @@ export function registerSightingTools(
     "misp_list_sightings",
     `List the sightings recorded on an event: who saw which attribute, when, and whether it was a sighting, a false positive, or an expiration. Returns at most limit sightings (default ${SIGHTINGS_DEFAULT_LIMIT}, max ${SIGHTINGS_MAX_LIMIT}) because the endpoint returns the full list; the result says when it was truncated.`,
     {
-      eventId: z.string().describe("Event ID to list sightings for"),
+      eventId: z.string().describe("Numeric event ID to list sightings for (UUIDs are not accepted by this endpoint)"),
       limit: z.number().int().min(1).max(SIGHTINGS_MAX_LIMIT).optional()
         .describe(`Max sightings to return (default ${SIGHTINGS_DEFAULT_LIMIT}, max ${SIGHTINGS_MAX_LIMIT})`),
     },
