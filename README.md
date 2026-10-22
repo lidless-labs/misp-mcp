@@ -20,13 +20,13 @@
   <img src="https://shieldcn.dev/badge/license-MIT-green.svg" alt="MIT license">
 </p>
 
-misp-mcp is a [Model Context Protocol](https://modelcontextprotocol.io/) server for [MISP](https://www.misp-project.org/), the open-source threat-intelligence sharing platform. It lets an LLM client such as Claude run IOC lookups, manage events, discover cross-event correlations, and export indicators directly against your own MISP instance. Unlike a generic HTTP wrapper, it ships 38 purpose-built tools, MISP-aware resources and prompts, and a confirmation gate that refuses destructive writes (delete, publish, untag) unless you explicitly approve them.
+misp-mcp is a [Model Context Protocol](https://modelcontextprotocol.io/) server for [MISP](https://www.misp-project.org/), the open-source threat-intelligence sharing platform. It lets an LLM client such as Claude run IOC lookups, manage events, discover cross-event correlations, and export indicators directly against your own MISP instance. Unlike a generic HTTP wrapper, it ships 39 purpose-built tools, MISP-aware resources and prompts, and a confirmation gate that refuses destructive writes (delete, publish, untag) unless you explicitly approve them.
 
 ## What it does
 
 misp-mcp connects an AI agent to a MISP (Malware Information Sharing Platform & Threat Intelligence Sharing) instance over MISP's REST API and exposes it as Model Context Protocol tools, resources, and prompts. Point it at your MISP server with an API key and an LLM can search threat-intelligence events, look up and add indicators of compromise (IOCs), correlate indicators across events, attach MITRE ATT&CK galaxy clusters, check warninglists for false positives, and export IOCs as Suricata, Snort, STIX, CSV, RPZ, or hash lists. The server is read-only by default: every tool that changes MISP state refuses to run until the operator names it in `MISP_ALLOWED_MUTATIONS`. Destructive and publishing operations (delete, publish, untag, disabling a feed, false-positive and expiration sightings) additionally need a per-call confirmation flag, and bulk writes need confirmation above a small size.
 
-- **38 MCP tools** covering events, attributes, correlations, tags, exports, sightings, warninglists, objects, galaxies, feeds, organisations, and server administration.
+- **39 MCP tools** covering events, attributes, correlations, tags, exports, sightings, warninglists, objects, galaxies, feeds, organisations, and server administration.
 - **3 MCP resources** for browsing attribute types, instance statistics, and available taxonomies.
 - **3 MCP prompts** for guided IOC investigation, incident event creation, and threat reporting.
 - **Read-only by default:** state-changing tools run only when listed in `MISP_ALLOWED_MUTATIONS`; each also accepts `dryRun: true` to preview a call without sending it.
@@ -150,7 +150,7 @@ A guarded call returns an error (`isError: true`) with a `Refused:` message and 
 
 ## Tools
 
-Verified against the server source (38 tools, registered in `src/tools/`).
+Verified against the server source (39 tools, registered in `src/tools/`).
 
 ### Event tools (6)
 
@@ -196,10 +196,11 @@ Verified against the server source (38 tools, registered in `src/tools/`).
 | `misp_export_iocs` | Export IOCs in CSV, STIX, Suricata, Snort, text, or RPZ format |
 | `misp_export_hashes` | Export file hashes (MD5, SHA1, SHA256) for HIDS integration |
 
-### Sighting & warninglist tools (2)
+### Sighting & warninglist tools (3)
 
 | Tool | Description |
 |------|-------------|
+| `misp_list_sightings` | List the sightings recorded on an event (`limit` default 100, max 500; the result says when it was truncated) |
 | `misp_add_sighting` | Report a sighting, false positive, or expiration for an IOC |
 | `misp_check_warninglists` | Check if a value appears on known benign/false positive lists |
 

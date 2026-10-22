@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Publish workflows pin third-party actions to commit SHAs and install an exact npm version instead of `npm@latest`.
 
 ### Added
+- `misp_list_sightings` lists the sightings recorded on an event (`GET /sightings/index/{eventId}`) with type labels, source, date, and organisation name. `limit` (default 100, max 500) is applied client-side and the result notes when it truncated (#18).
 - `misp_get_attribute` reads one attribute by ID (`GET /attributes/view/{id}`) with its tags, and `misp_update_attribute` edits selected fields in place (`PUT /attributes/edit/{id}`) without deleting and re-adding the IOC. The update requires at least one field, cannot move the attribute to another event, needs no `confirm` flag, and runs only when enabled in `MISP_ALLOWED_MUTATIONS` (#17).
 - `MISP_MAX_RESPONSE_BYTES` (default 16 MiB) caps one response body. The request timeout now stays armed while the body is read, so a stalled response can no longer hang a call.
 

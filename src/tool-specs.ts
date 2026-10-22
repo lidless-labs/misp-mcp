@@ -45,6 +45,7 @@ export const TOOL_SPECS: Readonly<Record<string, ToolSpec>> = {
   misp_export_hashes: { mutating: false },
 
   // Sightings and warninglists
+  misp_list_sightings: { mutating: false },
   misp_add_sighting: { mutating: true, destructive: true, idempotent: false },
   misp_check_warninglists: { mutating: false },
 

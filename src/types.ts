@@ -176,6 +176,7 @@ export interface MispSighting {
   date_sighting: string;
   source: string;
   type: string;
+  Organisation?: { id?: string; uuid?: string; name?: string };
 }
 
 // MISP Taxonomy

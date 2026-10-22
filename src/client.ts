@@ -558,6 +558,21 @@ export class MispClient {
     return data.Sighting;
   }
 
+  /** Lists every sighting recorded on an event. The endpoint is not paginated. */
+  async listSightings(eventId: string): Promise<MispSighting[]> {
+    // MISP compares this route value with numeric event IDs only: a UUID matches
+    // nothing and a zero means "no event filter", which returns sightings from
+    // every event the caller can see. Require a positive numeric ID.
+    if (!/^[1-9]\d*$/.test(eventId)) {
+      throw new Error(`Invalid eventId: ${JSON.stringify(eventId)}; a numeric event ID is required`);
+    }
+    const data = await this.request<Array<{ Sighting?: MispSighting } & Partial<MispSighting>>>(
+      "GET",
+      `/sightings/index/${encodeId(eventId, "eventId")}`
+    );
+    return (Array.isArray(data) ? data : []).map((s) => (s.Sighting ?? s) as MispSighting);
+  }
+
   // --- Warninglists ---
 
   async checkWarninglists(value: string): Promise<WarninglistCheckResponse> {
