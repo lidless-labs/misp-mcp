@@ -2,7 +2,7 @@ import type { McpServer, ToolCallback } from "@modelcontextprotocol/sdk/server/m
 import type { ZodRawShapeCompat } from "@modelcontextprotocol/sdk/server/zod-compat.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import type { MispClient } from "./client.js";
+import { ID_PATTERN, type MispClient } from "./client.js";
 import { requireMutationAllowed, type MutationPolicy } from "./guards.js";
 import { TOOL_SPECS } from "./tool-specs.js";
 import { fenceUntrusted } from "./untrusted.js";
@@ -13,6 +13,23 @@ const MUTATION_NOTE =
   " State-changing: runs only when the operator lists this tool in MISP_ALLOWED_MUTATIONS. Pass dryRun:true to preview without changing anything.";
 
 const MAX_PREVIEW_CHARS = 4000;
+
+/**
+ * Checks a tool needs beyond its input schema (for example "one of two fields
+ * is required"). Returns a message when the call would be rejected. Runs
+ * before a dry-run preview so a preview never reports success for a call the
+ * real run would refuse.
+ */
+export type Preflight = (params: Record<string, unknown>) => string | undefined;
+
+function invalidIdentifier(params: Record<string, unknown>): string | undefined {
+  for (const [key, value] of Object.entries(params)) {
+    if (key.endsWith("Id") && typeof value === "string" && !ID_PATTERN.test(value)) {
+      return `Invalid ${key}: ${JSON.stringify(value)}`;
+    }
+  }
+  return undefined;
+}
 
 function textResult(text: string, isError = false): CallToolResult {
   return { content: [{ type: "text", text }], ...(isError ? { isError: true } : {}) };
@@ -60,7 +77,8 @@ export class ToolRegistry {
     name: string,
     description: string,
     schema: Args,
-    handler: ToolCallback<Args>
+    handler: ToolCallback<Args>,
+    preflight?: Preflight
   ): void {
     const spec = TOOL_SPECS[name];
     if (!spec) {
@@ -100,6 +118,8 @@ export class ToolRegistry {
       (async (args, extra) => {
         const params = args as Record<string, unknown>;
         if (params.dryRun === true) {
+          const problem = invalidIdentifier(params) ?? preflight?.(params);
+          if (problem) return this.finish(textResult(`Error: ${problem}`, true));
           return this.finish(dryRunPreview(name, params, this.policy.allows(name)));
         }
         const refusal = requireMutationAllowed(this.policy, name);

@@ -222,6 +222,22 @@ describe("mutation gate", () => {
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 
+  it("dryRun rejects a call the real run would refuse", async () => {
+    const { handlers } = registerAll(ALLOW_ALL_MUTATIONS);
+
+    const noTarget = (await handlers.get("misp_add_sighting")!({ type: 0, dryRun: true })) as TextResult;
+    expect(noTarget.isError).toBe(true);
+    expect(noTarget.content[0].text).toContain("Either attributeId or value");
+
+    const badId = (await handlers.get("misp_publish_event")!({ eventId: "1/../2", dryRun: true })) as TextResult;
+    expect(badId.isError).toBe(true);
+    expect(badId.content[0].text).toContain("Invalid eventId");
+
+    const ok = (await handlers.get("misp_add_sighting")!({ attributeId: "7", type: 0, dryRun: true })) as TextResult;
+    expect(ok.isError).toBeUndefined();
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
   it("dryRun reports array sizes and skips the bulk confirmation", async () => {
     const { handlers } = registerAll(ALLOW_ALL_MUTATIONS);
     const attributes = Array.from({ length: 30 }, (_, i) => ({ type: "domain", value: `h${i}.example` }));
