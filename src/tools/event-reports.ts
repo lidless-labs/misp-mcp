@@ -26,7 +26,7 @@ export function registerEventReportTools(
     "misp_list_event_reports",
     `List the event reports (Markdown investigation narratives) attached to an event, without their content. The request is scoped to this event on the MISP side and the result is bounded by limit (default ${DEFAULT_SEARCH_LIMIT}, max ${SEARCH_LIMIT_MAX}). Use misp_get_event_report to read one.`,
     {
-      eventId: z.string().describe("Event ID to list reports for"),
+      eventId: z.string().describe("Numeric event ID to list reports for (UUIDs are not accepted by this endpoint)"),
       limit: limitInput(),
     },
     async ({ eventId, limit }) => {

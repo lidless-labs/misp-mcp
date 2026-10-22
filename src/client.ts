@@ -561,10 +561,11 @@ export class MispClient {
 
   /** Lists every sighting recorded on an event. The endpoint is not paginated. */
   async listSightings(eventId: string): Promise<MispSighting[]> {
-    // MISP treats a zero index as "no event filter" and returns sightings from
-    // every event the caller can see, so refuse it before building the path.
-    if (/^0+$/.test(eventId)) {
-      throw new Error(`Invalid eventId: ${JSON.stringify(eventId)}`);
+    // MISP compares this route value with numeric event IDs only: a UUID matches
+    // nothing and a zero means "no event filter", which returns sightings from
+    // every event the caller can see. Require a positive numeric ID.
+    if (!/^[1-9]\d*$/.test(eventId)) {
+      throw new Error(`Invalid eventId: ${JSON.stringify(eventId)}; a numeric event ID is required`);
     }
     const data = await this.request<Array<{ Sighting?: MispSighting } & Partial<MispSighting>>>(
       "GET",
@@ -581,6 +582,11 @@ export class MispClient {
    * result is still filtered here in case the server ignores the parameter.
    */
   async listEventReports(eventId: string): Promise<MispEventReport[]> {
+    // The event_id filter is compared with numeric event IDs only, so a UUID
+    // would silently match nothing.
+    if (!/^[1-9]\d*$/.test(eventId)) {
+      throw new Error(`Invalid eventId: ${JSON.stringify(eventId)}; a numeric event ID is required`);
+    }
     const data = await this.request<Array<{ EventReport?: MispEventReport } & Partial<MispEventReport>>>(
       "GET",
       `/eventReports/index/event_id:${encodeId(eventId, "eventId")}`

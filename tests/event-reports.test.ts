@@ -95,6 +95,11 @@ describe("MispClient event reports", () => {
     expect(lastCall().body).toEqual({ name: "N", content: "# C" });
   });
 
+  it.each(["0", "5f0e8a3c-9d3e-4a52-b6f1-0123456789ab"])("listEventReports rejects non-numeric event id %j without a request", async (id) => {
+    await expect(client.listEventReports(id)).rejects.toThrow(/Invalid eventId/);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
   it.each(["3/../4", "3?x=1", "a b", ""])("rejects id %j without a request", async (id) => {
     await expect(client.listEventReports(id)).rejects.toThrow(/Invalid eventId/);
     await expect(client.getEventReport(id)).rejects.toThrow(/Invalid eventReportId/);
