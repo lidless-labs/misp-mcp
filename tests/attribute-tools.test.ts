@@ -172,7 +172,11 @@ describe("misp_get_attribute and misp_update_attribute tools", () => {
     const schema = z.object(setup().registrations.get("misp_update_attribute")!.schema as z.ZodRawShape);
     expect(schema.safeParse({ attributeId: "7", comment: "" }).success).toBe(true);
     expect(schema.safeParse({ attributeId: "7", value: "" }).success).toBe(false);
-    expect(schema.safeParse({ attributeId: "7", distribution: 5 }).success).toBe(false);
+    expect(schema.safeParse({ attributeId: "7", distribution: 5 }).success).toBe(true);
+    expect(schema.safeParse({ attributeId: "7", distribution: 3 }).success).toBe(true);
+    // Level 4 needs a sharing group ID this tool cannot send; level 6 does not exist.
+    expect(schema.safeParse({ attributeId: "7", distribution: 4 }).success).toBe(false);
+    expect(schema.safeParse({ attributeId: "7", distribution: 6 }).success).toBe(false);
     expect(schema.safeParse({ attributeId: "7", toIds: "yes" }).success).toBe(false);
   });
 });

@@ -12,7 +12,7 @@ import {
 import { ToolRegistry } from "../tool-registry.js";
 import { trustedText } from "../untrusted.js";
 
-const DISTRIBUTION_LABELS = ["Organization", "Community", "Connected communities", "All communities", "Sharing group"];
+const DISTRIBUTION_LABELS = ["Organization", "Community", "Connected communities", "All communities", "Sharing group", "Inherit event"];
 
 export function registerEventReportTools(
   server: McpServer,
@@ -129,9 +129,10 @@ export function registerEventReportTools(
         .number()
         .int()
         .min(0)
-        .max(3)
+        .max(5)
+        .refine((level) => level !== 4, "Distribution 4 (sharing group) needs a sharing group ID, which this tool does not accept")
         .optional()
-        .describe("0=Organization only, 1=Community, 2=Connected communities, 3=All communities. Omit to use the event's own setting."),
+        .describe("0=Organization only, 1=Community, 2=Connected communities, 3=All communities, 5=Inherit from the event. Level 4 (sharing group) is not supported. Omit to use the server default."),
     },
     async ({ eventId, name, content, distribution }) => {
       try {

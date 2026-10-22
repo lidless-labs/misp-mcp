@@ -169,7 +169,7 @@ Verified against the server source (42 tools, registered in `src/tools/`).
 |------|-------------|
 | `misp_list_event_reports` | List the reports attached to an event (no content). The request is scoped to the event on the MISP side and the result is bounded by `limit` (default 50, max 500) |
 | `misp_get_event_report` | Read one report with its Markdown content (cut at 50,000 characters, and the result says so) |
-| `misp_add_event_report` | Add a Markdown report to an event (`name`, `content` up to 1 MB, optional `distribution` 0-3; omit it to use the event's own setting). Additive, no `confirm` flag, runs only when enabled in `MISP_ALLOWED_MUTATIONS` |
+| `misp_add_event_report` | Add a Markdown report to an event (`name`, `content` up to 1 MB, optional `distribution` 0-3, or 5 to inherit from the event; omit it to use the server default). Additive, no `confirm` flag, runs only when enabled in `MISP_ALLOWED_MUTATIONS` |
 
 ### Attribute tools (6)
 

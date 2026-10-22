@@ -208,6 +208,8 @@ describe("event report tools", () => {
     const base = { eventId: "3", name: "n", content: "c" };
     expect(schema.safeParse({ ...base, distribution: 3 }).success).toBe(true);
     expect(schema.safeParse({ ...base, distribution: 4 }).success).toBe(false);
+    expect(schema.safeParse({ ...base, distribution: 5 }).success).toBe(true);
+    expect(schema.safeParse({ ...base, distribution: 6 }).success).toBe(false);
     expect(schema.safeParse({ ...base, distribution: 0.5 }).success).toBe(false);
   });
 
