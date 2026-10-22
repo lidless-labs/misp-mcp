@@ -15,6 +15,7 @@ import {
 import { MUTATING_TOOL_NAMES, TOOL_SPECS } from "../src/tool-specs.js";
 import { fenceUntrusted } from "../src/untrusted.js";
 import { registerEventTools } from "../src/tools/events.js";
+import { registerEventReportTools } from "../src/tools/event-reports.js";
 import { registerAttributeTools } from "../src/tools/attributes.js";
 import { registerCorrelationTools } from "../src/tools/correlation.js";
 import { registerTagTools } from "../src/tools/tags.js";
@@ -53,6 +54,7 @@ function registerAll(policy: Parameters<typeof registerEventTools>[2]) {
   const harness = createToolHarness();
   const client = new MispClient(mockConfig);
   registerEventTools(harness.mockServer, client, policy);
+  registerEventReportTools(harness.mockServer, client, policy);
   registerAttributeTools(harness.mockServer, client, policy);
   registerCorrelationTools(harness.mockServer, client, policy);
   registerTagTools(harness.mockServer, client, policy);
@@ -142,6 +144,7 @@ describe("mutation gate", () => {
     misp_delete_event: { eventId: "1", confirm: true },
     misp_add_attribute: { eventId: "1", type: "domain", value: "bad.example" },
     misp_update_attribute: { attributeId: "1", toIds: false },
+    misp_add_event_report: { eventId: "1", name: "Report", content: "# Findings" },
     misp_add_attributes_bulk: { eventId: "1", attributes: [{ type: "domain", value: "bad.example" }] },
     misp_delete_attribute: { attributeId: "1", confirm: true },
     misp_add_sighting: { attributeId: "1", type: 0 },

@@ -179,6 +179,19 @@ export interface MispSighting {
   Organisation?: { id?: string; uuid?: string; name?: string };
 }
 
+// MISP event report (Markdown narrative attached to an event)
+export interface MispEventReport {
+  id: string;
+  uuid: string;
+  event_id: string;
+  name: string;
+  content: string;
+  distribution: string;
+  sharing_group_id?: string;
+  timestamp: string;
+  deleted?: boolean;
+}
+
 // MISP Taxonomy
 export interface MispTaxonomy {
   id: string;

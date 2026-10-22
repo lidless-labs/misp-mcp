@@ -50,3 +50,9 @@ export function moreResultsNote(returned: number, limit: number | undefined, pag
   const nextPage = (page ?? 1) + 1;
   return `Note: this page returned ${returned} results (the limit), so more results may exist. Call again with page: ${nextPage} to continue.`;
 }
+
+/** Event report content accepted by misp_add_event_report, in bytes. */
+export const EVENT_REPORT_MAX_CONTENT_BYTES = 1_000_000;
+
+/** Event report content returned by misp_get_event_report, in characters. */
+export const EVENT_REPORT_MAX_RETURNED_CHARS = 50_000;
