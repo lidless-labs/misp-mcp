@@ -3,6 +3,11 @@ import { z } from "zod";
 import type { MispClient } from "../client.js";
 import { createMutationPolicy, requireConfirmation, type MutationPolicy } from "../guards.js";
 import { ToolRegistry } from "../tool-registry.js";
+import { trustedText } from "../untrusted.js";
+
+const SIGHTING_TYPE_LABELS = ["Sighting", "False positive", "Expiration"];
+const SIGHTINGS_DEFAULT_LIMIT = 100;
+const SIGHTINGS_MAX_LIMIT = 500;
 
 export function registerSightingTools(
   server: McpServer,
@@ -10,6 +15,55 @@ export function registerSightingTools(
   policy: MutationPolicy = createMutationPolicy()
 ): void {
   const tools = new ToolRegistry(server, client, policy);
+
+  tools.add(
+    "misp_list_sightings",
+    `List the sightings recorded on an event: who saw which attribute, when, and whether it was a sighting, a false positive, or an expiration. Returns at most limit sightings (default ${SIGHTINGS_DEFAULT_LIMIT}, max ${SIGHTINGS_MAX_LIMIT}) because the endpoint returns the full list; the result says when it was truncated.`,
+    {
+      eventId: z.string().describe("Event ID to list sightings for"),
+      limit: z.number().int().min(1).max(SIGHTINGS_MAX_LIMIT).optional()
+        .describe(`Max sightings to return (default ${SIGHTINGS_DEFAULT_LIMIT}, max ${SIGHTINGS_MAX_LIMIT})`),
+    },
+    async ({ eventId, limit }) => {
+      try {
+        const all = await client.listSightings(eventId);
+
+        if (all.length === 0) {
+          return {
+            content: [{ type: "text", text: `No sightings found for event ${eventId}.` }],
+          };
+        }
+
+        const cap = limit ?? SIGHTINGS_DEFAULT_LIMIT;
+        const shown = all.slice(0, cap);
+        const summary = shown.map((s) => ({
+          id: s.id,
+          attribute_id: s.attribute_id,
+          event_id: s.event_id,
+          type: SIGHTING_TYPE_LABELS[parseInt(s.type, 10)] ?? `Unknown (${s.type})`,
+          source: s.source || undefined,
+          date_sighting: s.date_sighting,
+          organisation: s.Organisation?.name || undefined,
+        }));
+
+        return {
+          content: [
+            { type: "text", text: JSON.stringify(summary, null, 2) },
+            ...(all.length > shown.length
+              ? [trustedText(`Note: showing the first ${shown.length} of ${all.length} sightings. Raise limit (max ${SIGHTINGS_MAX_LIMIT}) to see more.`)]
+              : []),
+          ],
+        };
+      } catch (err) {
+        return {
+          content: [
+            { type: "text", text: `Error listing sightings: ${err instanceof Error ? err.message : String(err)}` },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
 
   tools.add(
     "misp_add_sighting",
@@ -50,7 +104,7 @@ export function registerSightingTools(
           timestamp: params.timestamp,
         });
 
-        const typeLabels = ["Sighting", "False positive", "Expiration"];
+        const typeLabels = SIGHTING_TYPE_LABELS;
 
         return {
           content: [
