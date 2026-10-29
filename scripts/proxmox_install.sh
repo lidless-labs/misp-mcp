@@ -53,7 +53,8 @@ read -p "Storage [local-lvm]: " CT_STORAGE; CT_STORAGE=${CT_STORAGE:-local-lvm}
 # Service config
 echo ""; echo -e "${YELLOW}MISP MCP Configuration${NC}"
 read -p "MISP_URL: " MISP_URL_VAL
-read -p "MISP_API_KEY: " MISP_API_KEY_VAL
+read -r -s -p "MISP_API_KEY: " MISP_API_KEY_VAL
+echo ""
 read -p "Port [3101]: " MCP_PORT; MCP_PORT=${MCP_PORT:-3101}
 
 # Template
@@ -93,11 +94,25 @@ pct exec "$CTID" -- bash -c "apt-get update && apt-get install -y nodejs"
 # Clone, configure, build
 echo -e "${YELLOW}Setting up MISP MCP...${NC}"
 pct exec "$CTID" -- bash -c "git clone https://github.com/lidless-labs/misp-mcp.git /opt/misp-mcp"
-# Write .env via printf so the host-side values expand (a single-quoted
-# heredoc would emit the literal $MISP_*_VAL strings). The .env holds the API
-# key, so create it with a tight umask and lock it down to root afterwards.
-pct exec "$CTID" -- bash -c "umask 077 && printf 'MISP_URL=%s\nMISP_API_KEY=%s\nPORT=%s\n' '$MISP_URL_VAL' '$MISP_API_KEY_VAL' '$MCP_PORT' > /opt/misp-mcp/.env && chown root:root /opt/misp-mcp/.env && chmod 600 /opt/misp-mcp/.env"
-pct exec "$CTID" -- bash -c "cd /opt/misp-mcp && npm install && npm run build"
+pct exec "$CTID" -- bash -c "getent group misp-mcp >/dev/null || groupadd --system misp-mcp"
+pct exec "$CTID" -- bash -c "id -u misp-mcp >/dev/null 2>&1 || useradd --system --gid misp-mcp --no-create-home --home-dir /run/misp-mcp --shell /usr/sbin/nologin misp-mcp"
+# Write service credentials
+# systemd reads this root-only file before dropping privileges. Quote values
+# for EnvironmentFile, and pass them on stdin so they never become shell code
+# or appear in the pct command line.
+quote_environment_value() {
+    local value="$1"
+    value=${value//\\/\\\\}
+    value=${value//\"/\\\"}
+    printf '"%s"' "$value"
+}
+{
+    printf 'MISP_URL=%s\n' "$(quote_environment_value "$MISP_URL_VAL")"
+    printf 'MISP_API_KEY=%s\n' "$(quote_environment_value "$MISP_API_KEY_VAL")"
+    printf 'PORT=%s\n' "$(quote_environment_value "$MCP_PORT")"
+} | pct exec "$CTID" -- bash -c 'install -d -o root -g root -m 0700 /etc/misp-mcp && umask 077 && cat > /etc/misp-mcp/environment && chown root:root /etc/misp-mcp/environment && chmod 600 /etc/misp-mcp/environment'
+# Build as the installer, then leave application files immutable to the service.
+pct exec "$CTID" -- bash -c "cd /opt/misp-mcp && npm ci --ignore-scripts && npm run build && npm prune --omit=dev --ignore-scripts && chown -R root:root /opt/misp-mcp && chmod -R go-w /opt/misp-mcp"
 
 # Systemd service
 pct exec "$CTID" -- bash -c "cat > /etc/systemd/system/misp-mcp.service << 'SVCEOF'
@@ -107,11 +122,26 @@ After=network.target
 
 [Service]
 Type=simple
+User=misp-mcp
+Group=misp-mcp
 WorkingDirectory=/opt/misp-mcp
 ExecStart=/usr/bin/node dist/mcp-bin.js
 Restart=on-failure
 RestartSec=10
-EnvironmentFile=/opt/misp-mcp/.env
+EnvironmentFile=/etc/misp-mcp/environment
+Environment=HOME=/run/misp-mcp
+RuntimeDirectory=misp-mcp
+RuntimeDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+CapabilityBoundingSet=
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 
 [Install]
 WantedBy=multi-user.target
@@ -127,7 +157,6 @@ echo -e "${GREEN}================================================${NC}"
 echo -e "  CT ID:     $CTID"
 echo -e "  Hostname:  $CT_HOSTNAME"
 echo -e "  IP:        $CT_IP"
-echo -e "  Password:  $CT_PASSWORD"
 echo -e "  Port:      $MCP_PORT"
 echo ""
 echo -e "  ${YELLOW}pct enter $CTID${NC}"

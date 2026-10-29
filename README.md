@@ -415,6 +415,10 @@ docker build -t misp-mcp .
 docker run -e MISP_URL=https://misp.example.com -e MISP_API_KEY=your-key -e MISP_VERIFY_SSL=false misp-mcp
 ```
 
+The image runs as the unprivileged `node` user. Application files under `/app` are owned by root and are read-only. Its writable home is `/run/misp-mcp`.
+
+The Proxmox installer creates a `misp-mcp` system user with no login shell. The service runs with a read-only filesystem, a private temporary directory, and a writable `/run/misp-mcp` directory with mode `0700`. Application files in `/opt/misp-mcp` remain owned by root. Credentials are stored in `/etc/misp-mcp/environment` with root ownership and mode `0600`, inside a root-only directory. The systemd manager reads that file before starting the unprivileged service. Edit it as root and restart the service when credentials change.
+
 ### Standalone
 
 ```bash
