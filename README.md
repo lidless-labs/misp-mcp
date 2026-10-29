@@ -415,9 +415,39 @@ docker build -t misp-mcp .
 docker run -e MISP_URL=https://misp.example.com -e MISP_API_KEY=your-key -e MISP_VERIFY_SSL=false misp-mcp
 ```
 
-The image runs as the unprivileged `node` user. Application files under `/app` are owned by root and are read-only. Its writable home is `/run/misp-mcp`.
+The image runs as the unprivileged `node` user. Application files under `/app` are owned by root and are read-only. Its writable home is `/run/misp-mcp`, and `/tmp` also remains writable. The image does not make the entire filesystem read-only.
+
+The build and runtime stages use the same official `node:22-slim` image pinned by digest.
 
 The Proxmox installer creates a `misp-mcp` system user with no login shell. The service runs with a read-only filesystem, a private temporary directory, and a writable `/run/misp-mcp` directory with mode `0700`. Application files in `/opt/misp-mcp` remain owned by root. Credentials are stored in `/etc/misp-mcp/environment` with root ownership and mode `0600`, inside a root-only directory. The systemd manager reads that file before starting the unprivileged service. Edit it as root and restart the service when credentials change.
+
+### Reviewed Proxmox installer inputs
+
+Before running the installer, review a local copy of the script and set these
+immutable inputs. There are no defaults:
+
+- `MISP_SOURCE_COMMIT`: the full 40-character hexadecimal commit reviewed for
+  installation from `https://github.com/lidless-labs/misp-mcp.git`.
+- `NODE_VERSION`: an exact Node 22 version at least `22.12.0`, without a `v` prefix.
+- `NODE_ARCH`: `x64` or `arm64`, matching the guest architecture.
+- `NODE_SHA256`: the 64-character SHA-256 of that version's
+  `node-v<VERSION>-linux-<ARCH>.tar.xz` archive.
+
+Obtain the archive checksum from the official release's signed
+`SHASUMS256.txt.asc`. Verify its signature with a separately trusted Node release
+keyring using the [official binary verification instructions](https://github.com/nodejs/node#verifying-binaries)
+before supplying the checksum. Do not copy a checksum from the same unverified
+download as the archive.
+
+The installer rejects missing or malformed pins before any host command or LXC
+creation. It downloads only from `https://nodejs.org/dist/v<VERSION>/`, checks the
+archive against the supplied checksum before extraction, then fetches the reviewed
+source commit from the canonical repository and checks its exact hash before
+`npm ci --ignore-scripts` or the build. Node is installed in `/usr/local`, including
+the service executable `/usr/local/bin/node`. Ubuntu template and apt prerequisites
+still follow their upstream repositories. This does not freeze the whole OS or
+provide a reproducible apt snapshot. An interrupted install leaves its guest for
+operator inspection. A retry refuses an existing container ID.
 
 ### Standalone
 

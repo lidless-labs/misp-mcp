@@ -15,7 +15,7 @@ describe("deployment privilege boundaries", () => {
     expect(runtime).toMatch(/chmod\s+-R\s+(?:a-w|go-w)\s+\/app/);
   });
 
-  it("sandboxes the service with only its runtime directory writable", () => {
+  it("sandboxes the service with a writable runtime directory and private temporary files", () => {
     const unit = installer.match(/\[Unit\][\s\S]*?WantedBy=multi-user.target/)![0];
     const settings = Object.fromEntries(unit.split("\n").filter(line => line.includes("=")).map(line => {
       const equals = line.indexOf("=");
@@ -37,7 +37,7 @@ describe("deployment privilege boundaries", () => {
   });
 
   it("streams quoted credentials over stdin instead of interpolating them into commands", () => {
-    const setup = installer.match(/^pct exec[^\n]*git clone[^\n]*\n([\s\S]*?)^# Systemd service/m)![1];
+    const setup = installer.match(/^# Configure service\n([\s\S]*?)^# Systemd service/m)![1];
     const result = execFileSync("bash", ["-eu", "-c", `
       pct() {
         for arg in "$@"; do
@@ -55,4 +55,11 @@ describe("deployment privilege boundaries", () => {
     expect(setup).toMatch(/umask 077/);
     expect(setup).toMatch(/chmod 600 \/etc\/misp-mcp\/environment/);
   });
+});
+
+it("pins both Docker stages to the same reviewed official Node 22 slim digest", () => {
+  const bases = [...dockerfile.matchAll(/^FROM (\S+)/gm)].map(match => match[1]);
+  expect(bases).toHaveLength(2);
+  expect(bases[0]).toMatch(/^node:22(?:\.[0-9]+\.[0-9]+)?-(?:bookworm-)?slim@sha256:[a-f0-9]{64}$/);
+  expect(bases[1]).toBe(bases[0]);
 });
