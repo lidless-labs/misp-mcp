@@ -121,3 +121,24 @@ describe("canonical reviewed source", () => {
       expect(result.calls).not.toMatch(/^npm /m);
     });
 });
+
+
+describe("container root access", () => {
+  it("creates without a password argument and locks guest password access", () => {
+    const fragment = installer.slice(installer.indexOf("# Create container"), installer.indexOf("# Install deps"));
+    const result = harness(`
+      pct() { record "pct $*"; case "$1" in create|start) return 0;; exec) shift 3; "$@";; *) return 90;; esac; }
+      openssl() { printf '%s' 'SYNTHETIC_ROOT_PASSWORD'; }
+      sleep() { :; }
+      ping() { :; }
+      passwd() { record "passwd $*"; }
+      export -f pct openssl sleep ping passwd
+      ${fragment}
+    `);
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.calls).not.toContain("SYNTHETIC_ROOT_PASSWORD");
+    expect(result.calls).not.toContain("--password");
+    expect(result.calls).toContain("passwd -l root");
+    expect(result.calls.indexOf("passwd -l root")).toBeLessThan(result.calls.indexOf("ping -c1"));
+  });
+});

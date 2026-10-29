@@ -516,6 +516,10 @@ The MISP web UI and PyMISP are excellent for analysts working a console. misp-mc
 - **Not a credential vault.** It reads `MISP_URL` and `MISP_API_KEY` from the environment; manage and rotate those keys with your own secrets tooling.
 - **Not an autonomous deleter.** Destructive and publishing actions are confirmation-gated by design.
 
+### Container root access
+
+The installer creates no guest root password and locks password login after starting the container. Manage the guest from its Proxmox host with `pct enter`. Service API credentials continue to use protected stdin delivery and root-only storage.
+
 ## License
 
 [MIT](LICENSE)

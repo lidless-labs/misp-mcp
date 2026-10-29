@@ -97,14 +97,16 @@ fi
 
 # Create container
 echo -e "${YELLOW}Creating container $CTID...${NC}"
-CT_PASSWORD=$(openssl rand -base64 12)
 pct create "$CTID" "$TEMPLATE" \
     --hostname "$CT_HOSTNAME" --memory "$CT_MEMORY" --cores "$CT_CORES" \
     --rootfs "$CT_STORAGE:$CT_DISK" --net0 "$NET_CONFIG" \
-    --unprivileged 1 --features nesting=1 --password "$CT_PASSWORD" --start 0
+    --unprivileged 1 --features nesting=1 --start 0
 
 # Start and wait for network
-pct start "$CTID"; sleep 10
+pct start "$CTID"
+# Host administrators use pct enter. No guest root password is generated.
+pct exec "$CTID" -- passwd -l root
+sleep 10
 for i in {1..30}; do
     pct exec "$CTID" -- ping -c1 8.8.8.8 &>/dev/null && break; sleep 2
 done
