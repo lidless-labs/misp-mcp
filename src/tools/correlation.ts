@@ -4,7 +4,6 @@ import type { MispClient } from "../client.js";
 import { createMutationPolicy, type MutationPolicy } from "../guards.js";
 import { CORRELATION_MAX_ATTRIBUTES, CORRELATION_MAX_PER_ATTRIBUTE } from "../limits.js";
 import { ToolRegistry } from "../tool-registry.js";
-import type { MispAttribute } from "../types.js";
 
 export function registerCorrelationTools(
   server: McpServer,
@@ -139,21 +138,19 @@ export function registerCorrelationTools(
         // Search for attribute values across other events
         const toIdsAttrs = eventAttributes.filter((a) => a.to_ids);
         const truncatedAttributes = toIdsAttrs.length > attrCap;
-        const valuesToSearch = toIdsAttrs.slice(0, attrCap).map((a) => a.value);
-        const matchesByValue = new Map<string, MispAttribute[]>();
+        const valueCounts = new Map<string, number>();
+        for (const { value } of toIdsAttrs.slice(0, attrCap)) {
+          valueCounts.set(value, (valueCounts.get(value) ?? 0) + 1);
+        }
         let truncatedMatches = false;
 
-        for (const value of valuesToSearch) {
-          let matches = matchesByValue.get(value);
-          if (!matches) {
-            matches = await client.searchAttributes({
-              value,
-              includeCorrelations: true,
-              limit: matchLimit,
-            });
-            matchesByValue.set(value, matches);
-            if (matches.length >= matchLimit) truncatedMatches = true;
-          }
+        for (const [value, sourceCount] of valueCounts) {
+          const matches = await client.searchAttributes({
+            value,
+            includeCorrelations: true,
+            limit: matchLimit,
+          });
+          if (matches.length >= matchLimit) truncatedMatches = true;
 
           // Each source attribute still contributes its matches to the counts.
           for (const match of matches) {
@@ -170,7 +167,7 @@ export function registerCorrelationTools(
             if (!entry.overlapping_iocs.includes(value)) {
               entry.overlapping_iocs.push(value);
             }
-            entry.correlation_count++;
+            entry.correlation_count += sourceCount;
           }
         }
 
