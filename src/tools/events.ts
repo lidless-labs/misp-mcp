@@ -184,6 +184,13 @@ export function registerEventTools(
           date: params.date,
           tags: params.tags,
         });
+        const tagResults = event.tag_results;
+        let warning: string | undefined;
+        if (tagResults && (tagResults.failed.length || tagResults.skipped.length)) {
+          warning = event.id
+            ? "The event was created. Verify its tags in MISP and use misp_tag_event, if enabled, to apply any missing tags to this event."
+            : "MISP accepted the event creation but returned no event ID. Check MISP before retrying.";
+        }
 
         return {
           content: [
@@ -196,7 +203,9 @@ export function registerEventTools(
                   info: event.info,
                   date: event.date,
                   published: event.published,
-                  tags: (event.Tag || []).map((t) => t.name),
+                  tags: tagResults ? undefined : (event.Tag || []).map((t) => t.name),
+                  tag_results: tagResults,
+                  warning,
                 },
                 null,
                 2

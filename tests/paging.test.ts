@@ -85,7 +85,8 @@ describe("limit and page validation", () => {
     const schema = schemaOf(name);
     expect(schema.safeParse({ page: 1 }).success).toBe(true);
     expect(schema.safeParse({ page: 2 }).success).toBe(true);
-    for (const page of [0, -1, 1.5]) {
+    expect(schema.safeParse({ page: Number.MAX_SAFE_INTEGER }).success).toBe(true);
+    for (const page of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
       expect(schema.safeParse({ page }).success, `page ${page}`).toBe(false);
     }
   });
@@ -126,7 +127,7 @@ describe("attribute search paging", () => {
     expect(requestBody().limit).toBe(50);
   });
 
-  it("adds a more-results note only when the page is full", async () => {
+  it("adds a more-results note when the page is full", async () => {
     const { handlers } = setup();
 
     respondWith(attributes(3));
@@ -135,10 +136,6 @@ describe("attribute search paging", () => {
     expect(full.content[1].text).toContain("more results may exist");
     expect(full.content[1].text).toContain("page: 2");
     expect(JSON.parse(full.content[0].text)).toHaveLength(3);
-
-    respondWith(attributes(2));
-    const partial = (await handlers.get("misp_search_attributes")!({ limit: 3 })) as TextResult;
-    expect(partial.content).toHaveLength(1);
   });
 
   it("names the page after the one requested", async () => {
@@ -166,16 +163,39 @@ describe("event search paging note", () => {
     vi.mocked(fetch).mockReset();
   });
 
-  it("adds the note only when the page is full and passes page through", async () => {
+  it("adds a note when the page is full and passes page through", async () => {
     const { handlers } = setup();
 
     respondWith(events(4));
     const full = (await handlers.get("misp_search_events")!({ limit: 4, page: 3 })) as TextResult;
     expect(requestBody()).toMatchObject({ page: 3, limit: 4 });
     expect(full.content[1].text).toContain("page: 4");
+  });
+});
 
-    respondWith(events(3));
-    const partial = (await handlers.get("misp_search_events")!({ limit: 4 })) as TextResult;
-    expect(partial.content).toHaveLength(1);
+describe.each([
+  ["misp_search_attributes", attributes],
+  ["misp_search_events", events],
+] as const)("%s continuation hints", (name, pageBody) => {
+  it.each([3, undefined])("suggests checking the next page after a server-capped response (limit %s)", async (limit) => {
+    respondWith(pageBody(2));
+    const result = (await setup().handlers.get(name)!({ limit, page: 4 })) as TextResult;
+    expect(result.content[1]?.text).toMatch(/MISP may have applied a lower limit.*page: 5/);
+  });
+
+  it("stops suggesting pages after an empty response", async () => {
+    respondWith(pageBody(0));
+    const result = (await setup().handlers.get(name)!({ page: 4 })) as TextResult;
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0].text).toContain("found matching the search criteria");
+  });
+
+  it("stops suggesting pages at the largest safe page number", async () => {
+    const search = setup().handlers.get(name)!;
+    respondWith(pageBody(2));
+    const penultimate = (await search({ limit: 2, page: Number.MAX_SAFE_INTEGER - 1 })) as TextResult;
+    expect(penultimate.content[1]?.text).toContain(`page: ${Number.MAX_SAFE_INTEGER}`);
+    const last = (await search({ limit: 2, page: Number.MAX_SAFE_INTEGER })) as TextResult;
+    expect(last.content).toHaveLength(1);
   });
 });

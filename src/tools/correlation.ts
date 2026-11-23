@@ -98,7 +98,7 @@ export function registerCorrelationTools(
     {
       eventId: z.string().describe("Event ID to find related events for"),
       maxAttributes: z.number().int().positive().max(CORRELATION_MAX_ATTRIBUTES).optional()
-        .describe(`Max number of to_ids attributes to correlate across (default 20, max ${CORRELATION_MAX_ATTRIBUTES}). Each one is a separate MISP API request.`),
+        .describe(`Max number of to_ids attributes to correlate across (default 20, max ${CORRELATION_MAX_ATTRIBUTES}). Each distinct value is searched once.`),
       perAttributeLimit: z.number().int().positive().max(CORRELATION_MAX_PER_ATTRIBUTE).optional()
         .describe(`Max matches to fetch per attribute value (default 100, max ${CORRELATION_MAX_PER_ATTRIBUTE}).`),
     },
@@ -107,6 +107,7 @@ export function registerCorrelationTools(
         const attrCap = maxAttributes ?? 20;
         const matchLimit = perAttributeLimit ?? 100;
         const event = await client.getEvent(eventId);
+        const sourceEventId = String(event.id);
         const eventAttributes = event.Attribute || [];
 
         if (eventAttributes.length === 0) {
@@ -124,8 +125,10 @@ export function registerCorrelationTools(
         // Use event's RelatedEvent data if available
         if (event.RelatedEvent && event.RelatedEvent.length > 0) {
           for (const rel of event.RelatedEvent) {
-            relatedMap.set(rel.Event.id, {
-              event_id: rel.Event.id,
+            const relatedId = String(rel.Event.id);
+            if (relatedId === sourceEventId) continue;
+            relatedMap.set(relatedId, {
+              event_id: relatedId,
               event_info: rel.Event.info,
               overlapping_iocs: [],
               correlation_count: 0,
@@ -136,35 +139,37 @@ export function registerCorrelationTools(
         // Search for attribute values across other events
         const toIdsAttrs = eventAttributes.filter((a) => a.to_ids);
         const truncatedAttributes = toIdsAttrs.length > attrCap;
-        const valuesToSearch = toIdsAttrs.slice(0, attrCap).map((a) => a.value);
+        const valueCounts = new Map<string, number>();
+        for (const { value } of toIdsAttrs.slice(0, attrCap)) {
+          valueCounts.set(value, (valueCounts.get(value) ?? 0) + 1);
+        }
         let truncatedMatches = false;
 
-        for (const value of valuesToSearch) {
+        for (const [value, sourceCount] of valueCounts) {
           const matches = await client.searchAttributes({
             value,
             includeCorrelations: true,
             limit: matchLimit,
           });
-          if (matches.length >= matchLimit) {
-            truncatedMatches = true;
-          }
+          if (matches.length >= matchLimit) truncatedMatches = true;
 
+          // Each source attribute still contributes its matches to the counts.
           for (const match of matches) {
-            if (match.event_id !== eventId) {
-              if (!relatedMap.has(match.event_id)) {
-                relatedMap.set(match.event_id, {
-                  event_id: match.event_id,
-                  event_info: match.Event?.info || "Unknown",
-                  overlapping_iocs: [],
-                  correlation_count: 0,
-                });
-              }
-              const entry = relatedMap.get(match.event_id)!;
-              if (!entry.overlapping_iocs.includes(value)) {
-                entry.overlapping_iocs.push(value);
-              }
-              entry.correlation_count++;
+            const relatedId = String(match.event_id);
+            if (relatedId === sourceEventId) continue;
+            if (!relatedMap.has(relatedId)) {
+              relatedMap.set(relatedId, {
+                event_id: relatedId,
+                event_info: match.Event?.info || "Unknown",
+                overlapping_iocs: [],
+                correlation_count: 0,
+              });
             }
+            const entry = relatedMap.get(relatedId)!;
+            if (!entry.overlapping_iocs.includes(value)) {
+              entry.overlapping_iocs.push(value);
+            }
+            entry.correlation_count += sourceCount;
           }
         }
 

@@ -73,6 +73,16 @@ function describeFetchError(err: unknown): string {
 
 const MAX_ERROR_DETAIL_CHARS = 200;
 
+interface CreationTagResults {
+  applied: string[];
+  failed: Array<{ tag: string; error: string; outcome: "unverified" }>;
+  skipped: string[];
+  skipped_reason?: string;
+  refresh_warning?: string;
+}
+
+type CreationResult<T> = T & { tag_results?: CreationTagResults };
+
 function statusClass(status: number): string {
   if (status >= 500) return "server error";
   if (status >= 400) return "client error";
@@ -316,7 +326,7 @@ export class MispClient {
     analysis: number;
     date?: string;
     tags?: string[];
-  }): Promise<MispEvent> {
+  }): Promise<CreationResult<MispEvent>> {
     const eventData: Record<string, unknown> = {
       info: params.info,
       distribution: params.distribution,
@@ -330,16 +340,27 @@ export class MispClient {
       Event: eventData,
     });
 
-    // Add tags after creation if specified
-    if (params.tags && params.tags.length > 0 && data.Event.id) {
-      for (const tag of params.tags) {
-        await this.tagEvent(data.Event.id, tag);
-      }
-      // Re-fetch to include tags
-      return this.getEvent(data.Event.id);
-    }
+    const event = data.Event;
+    if (!params.tags?.length) return event;
 
-    return data.Event;
+    const tagResults = await this.applyCreationTags(event.id, params.tags, (id, tag) => this.tagEvent(id, tag));
+    if (tagResults.failed.length || tagResults.skipped.length) return { ...event, tag_results: tagResults };
+
+    try {
+      const refreshed = await this.getEvent(event.id);
+      if (!refreshed?.id || String(refreshed.id) !== String(event.id)) {
+        throw new Error("MISP did not return the created event");
+      }
+      return refreshed;
+    } catch (err) {
+      return {
+        ...event,
+        tag_results: {
+          ...tagResults,
+          refresh_warning: `Could not refresh the created event: ${this.redact(err instanceof Error ? err.message : String(err))}`,
+        },
+      };
+    }
   }
 
   async updateEvent(
@@ -432,7 +453,7 @@ export class MispClient {
       distribution?: number;
       tags?: string[];
     }
-  ): Promise<MispAttribute> {
+  ): Promise<CreationResult<MispAttribute>> {
     const attrData: Record<string, unknown> = {
       type: params.type,
       value: params.value,
@@ -450,17 +471,51 @@ export class MispClient {
       attrData
     );
 
-    // Add tags if specified
-    if (params.tags && params.tags.length > 0 && data.Attribute?.id) {
-      for (const tag of params.tags) {
-        await this.request("POST", "/attributes/addTag", {
-          attribute: data.Attribute.id,
-          tag,
-        });
+    const attribute = data.Attribute;
+    if (!params.tags?.length || !attribute) return attribute;
+
+    const tagResults = await this.applyCreationTags(attribute.id, params.tags, (id, tag) =>
+      this.request("POST", "/attributes/addTag", { attribute: id, tag })
+    );
+    return tagResults.failed.length || tagResults.skipped.length
+      ? { ...attribute, tag_results: tagResults }
+      : attribute;
+  }
+
+  private async applyCreationTags(
+    id: string | undefined,
+    tags: string[],
+    apply: (id: string, tag: string) => Promise<unknown>
+  ): Promise<CreationTagResults> {
+    const uniqueTags = [...new Set(tags)];
+    if (!id) {
+      return {
+        applied: [],
+        failed: [],
+        skipped: uniqueTags,
+        skipped_reason: "MISP did not return an ID for the created record.",
+      };
+    }
+
+    const applied: string[] = [];
+    for (const tag of uniqueTags) {
+      try {
+        await apply(id, tag);
+        applied.push(tag);
+      } catch (err) {
+        return {
+          applied,
+          failed: [{
+            tag,
+            error: this.redact(err instanceof Error ? err.message : String(err)),
+            outcome: "unverified",
+          }],
+          skipped: uniqueTags.slice(applied.length + 1),
+        };
       }
     }
 
-    return data.Attribute;
+    return { applied, failed: [], skipped: [] };
   }
 
   async getAttribute(attributeId: string): Promise<MispAttribute> {
