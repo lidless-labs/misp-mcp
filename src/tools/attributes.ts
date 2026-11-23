@@ -235,6 +235,7 @@ export function registerAttributeTools(
                   category: attribute.category,
                   value: attribute.value,
                   to_ids: attribute.to_ids,
+                  tag_results: attribute.tag_results,
                 },
                 null,
                 2

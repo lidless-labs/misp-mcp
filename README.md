@@ -182,6 +182,8 @@ Verified against the server source (42 tools, registered in `src/tools/`).
 | `misp_add_attributes_bulk` | Add multiple IOCs to an event in one operation |
 | `misp_delete_attribute` | Soft or hard delete an attribute (requires `confirm:true`; hard delete also requires `confirmHard:true`) |
 
+If optional tagging fails after `misp_create_event` or `misp_add_attribute` succeeds, the tool returns the created ID and `tag_results` listing applied, failed, and skipped tags. Tagging stops at the first failure. If the event refresh fails after tagging succeeds, `tag_results.refresh_warning` explains why the response uses the original creation data.
+
 ### Correlation & intelligence tools (3)
 
 | Tool | Description |

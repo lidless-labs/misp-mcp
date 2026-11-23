@@ -197,6 +197,7 @@ export function registerEventTools(
                   date: event.date,
                   published: event.published,
                   tags: (event.Tag || []).map((t) => t.name),
+                  tag_results: event.tag_results,
                 },
                 null,
                 2

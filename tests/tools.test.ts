@@ -223,6 +223,42 @@ describe("Event Tools", () => {
       expect(data.id).toBe("99");
       expect(data.info).toBe("New phishing campaign");
     });
+
+    it.each(["tag", "refresh"])("preserves the created event when the %s request fails", async (failure) => {
+      const tags = ["first", "second", "third"];
+      const requests = vi.mocked(fetch).mockReset()
+        .mockImplementationOnce(mockFetchResponse({ Event: { id: "99", Tag: [] } }))
+        .mockImplementationOnce(mockFetchResponse({ saved: true }));
+      if (failure === "refresh") {
+        requests
+          .mockImplementationOnce(mockFetchResponse({ saved: true }))
+          .mockImplementationOnce(mockFetchResponse({ saved: true }));
+      }
+      requests.mockImplementationOnce(mockFetchResponse({ message: `Failed: ${mockConfig.apiKey}` }, 403));
+
+      const result = (await handlers.get("misp_create_event")!({
+        info: "New event", distribution: 0, threatLevel: 2, analysis: 0, tags,
+      })) as { content: Array<{ text: string }>; isError?: boolean };
+
+      expect(result.isError).toBeFalsy();
+      expect(result.content[0].text).not.toContain(mockConfig.apiKey);
+      const data = JSON.parse(result.content[0].text);
+      expect(data.id).toBe("99");
+      if (failure === "tag") {
+        expect(data.tag_results).toEqual({
+          applied: ["first"],
+          failed: [{ tag: "second", error: expect.stringContaining("[REDACTED]") }],
+          skipped: ["third"],
+        });
+        expect(requests.mock.calls.map(([url]) => new URL(String(url)).pathname)).toEqual([
+          "/events/add", "/events/addTag", "/events/addTag",
+        ]);
+      } else {
+        expect(data.tag_results).toMatchObject({ applied: tags, failed: [], skipped: [] });
+        expect(data.tag_results.refresh_warning).toMatch(/refresh.*\[REDACTED\]/i);
+        expect(requests.mock.lastCall?.[0]).toBe(`${mockConfig.url}/events/view/99`);
+      }
+    });
   });
 
   describe("misp_publish_event", () => {
@@ -367,6 +403,32 @@ describe("Attribute Tools", () => {
       expect(data.id).toBe("300");
       expect(data.value).toBe("evil.com");
       expect(data.type).toBe("domain");
+    });
+
+    it("preserves the created attribute and stops tagging after a failure", async () => {
+      const requests = vi.mocked(fetch).mockReset()
+        .mockImplementationOnce(mockFetchResponse({ Attribute: { id: "300", event_id: "42" } }))
+        .mockImplementationOnce(mockFetchResponse({ saved: true }))
+        .mockImplementationOnce(mockFetchResponse({ message: `Failed: ${mockConfig.apiKey}` }, 403));
+
+      const result = (await handlers.get("misp_add_attribute")!({
+        eventId: "42", type: "domain", value: "test.example", tags: ["first", "second", "third"],
+      })) as { content: Array<{ text: string }>; isError?: boolean };
+
+      expect(result.isError).toBeFalsy();
+      expect(result.content[0].text).not.toContain(mockConfig.apiKey);
+      expect(JSON.parse(result.content[0].text)).toMatchObject({
+        id: "300",
+        event_id: "42",
+        tag_results: {
+          applied: ["first"],
+          failed: [{ tag: "second", error: expect.stringContaining("[REDACTED]") }],
+          skipped: ["third"],
+        },
+      });
+      expect(requests.mock.calls.map(([url]) => new URL(String(url)).pathname)).toEqual([
+        "/attributes/add/42", "/attributes/addTag", "/attributes/addTag",
+      ]);
     });
   });
 
