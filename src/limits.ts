@@ -20,7 +20,7 @@ export const OBJECT_MAX_ATTRIBUTES = 100;
 /** Tags applied by one create-event or add-attribute call (each tag is a request). */
 export const MAX_TAGS_PER_CALL = 20;
 
-/** misp_get_related_events: attributes to correlate, one MISP search request each. */
+/** misp_get_related_events: source attributes to correlate, including repeated values. */
 export const CORRELATION_MAX_ATTRIBUTES = 50;
 
 /** misp_get_related_events: matches fetched per attribute. */

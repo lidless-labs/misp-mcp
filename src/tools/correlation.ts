@@ -4,6 +4,7 @@ import type { MispClient } from "../client.js";
 import { createMutationPolicy, type MutationPolicy } from "../guards.js";
 import { CORRELATION_MAX_ATTRIBUTES, CORRELATION_MAX_PER_ATTRIBUTE } from "../limits.js";
 import { ToolRegistry } from "../tool-registry.js";
+import type { MispAttribute } from "../types.js";
 
 export function registerCorrelationTools(
   server: McpServer,
@@ -98,7 +99,7 @@ export function registerCorrelationTools(
     {
       eventId: z.string().describe("Event ID to find related events for"),
       maxAttributes: z.number().int().positive().max(CORRELATION_MAX_ATTRIBUTES).optional()
-        .describe(`Max number of to_ids attributes to correlate across (default 20, max ${CORRELATION_MAX_ATTRIBUTES}). Each one is a separate MISP API request.`),
+        .describe(`Max number of to_ids attributes to correlate across (default 20, max ${CORRELATION_MAX_ATTRIBUTES}). Each distinct value is searched once.`),
       perAttributeLimit: z.number().int().positive().max(CORRELATION_MAX_PER_ATTRIBUTE).optional()
         .describe(`Max matches to fetch per attribute value (default 100, max ${CORRELATION_MAX_PER_ATTRIBUTE}).`),
     },
@@ -139,18 +140,22 @@ export function registerCorrelationTools(
         const toIdsAttrs = eventAttributes.filter((a) => a.to_ids);
         const truncatedAttributes = toIdsAttrs.length > attrCap;
         const valuesToSearch = toIdsAttrs.slice(0, attrCap).map((a) => a.value);
+        const matchesByValue = new Map<string, MispAttribute[]>();
         let truncatedMatches = false;
 
         for (const value of valuesToSearch) {
-          const matches = await client.searchAttributes({
-            value,
-            includeCorrelations: true,
-            limit: matchLimit,
-          });
-          if (matches.length >= matchLimit) {
-            truncatedMatches = true;
+          let matches = matchesByValue.get(value);
+          if (!matches) {
+            matches = await client.searchAttributes({
+              value,
+              includeCorrelations: true,
+              limit: matchLimit,
+            });
+            matchesByValue.set(value, matches);
+            if (matches.length >= matchLimit) truncatedMatches = true;
           }
 
+          // Each source attribute still contributes its matches to the counts.
           for (const match of matches) {
             if (String(match.event_id) === sourceEventId) continue;
             if (!relatedMap.has(match.event_id)) {

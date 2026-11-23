@@ -675,6 +675,50 @@ describe("Correlation Tools", () => {
         ],
       });
     });
+
+    it.each([20, 21])("reuses IOC searches and preserves ranking with %i source attributes", async (count) => {
+      const values = ["a.example", "b.example", "c.example", "d.example", "e.example"];
+      const attributes = Array.from({ length: 20 }, (_, index) => ({
+        value: values[index % values.length],
+        to_ids: true,
+      }));
+      if (count === 21) attributes.push({ value: "outside-cap.example", to_ids: true });
+
+      const requests = vi.mocked(fetch).mockReset()
+        .mockImplementationOnce(mockFetchResponse({
+          Event: { id: "42", info: "Source event", Attribute: attributes },
+        }))
+        .mockImplementation((url, init) => {
+          const { value } = JSON.parse(init?.body as string);
+          const matches = [{ event_id: "43", Event: { info: "First related event" } }];
+          if (value === "e.example") matches.unshift({ event_id: "44", Event: { info: "Second related event" } });
+          return mockFetchResponse({ response: { Attribute: matches } })(url, init);
+        });
+
+      const result = (await handlers.get("misp_get_related_events")!({
+        eventId: "42", perAttributeLimit: 2,
+      })) as { content: Array<{ text: string }> };
+
+      const data = JSON.parse(result.content[0].text);
+      expect(data).toMatchObject({
+        related_events: [
+          { event_id: "43", correlation_count: 20, overlapping_iocs: values },
+          { event_id: "44", correlation_count: 4, overlapping_iocs: ["e.example"] },
+        ],
+        total_related: 2,
+        truncated: true,
+      });
+      expect(data.truncation_reason).toContain(count === 21 ? "first 20 of 21" : "match limit of 2");
+
+      const searches = requests.mock.calls.slice(1);
+      expect(searches).toHaveLength(5);
+      expect(searches.map(([url, init]) => {
+        expect(url).toBe(`${mockConfig.url}/attributes/restSearch`);
+        const body = JSON.parse(init?.body as string);
+        expect(body).toMatchObject({ limit: 2, includeCorrelations: 1 });
+        return body.value;
+      })).toEqual(values);
+    });
   });
 
   describe("misp_describe_types", () => {
