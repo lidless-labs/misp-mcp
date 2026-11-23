@@ -75,8 +75,9 @@ const MAX_ERROR_DETAIL_CHARS = 200;
 
 interface CreationTagResults {
   applied: string[];
-  failed: Array<{ tag: string; error: string }>;
+  failed: Array<{ tag: string; error: string; outcome: "unverified" }>;
   skipped: string[];
+  skipped_reason?: string;
   refresh_warning?: string;
 }
 
@@ -340,10 +341,10 @@ export class MispClient {
     });
 
     const event = data.Event;
-    if (!params.tags?.length || !event.id) return event;
+    if (!params.tags?.length) return event;
 
-    const tagResults = await this.applyCreationTags(params.tags, (tag) => this.tagEvent(event.id, tag));
-    if (tagResults.failed.length) return { ...event, tag_results: tagResults };
+    const tagResults = await this.applyCreationTags(event.id, params.tags, (id, tag) => this.tagEvent(id, tag));
+    if (tagResults.failed.length || tagResults.skipped.length) return { ...event, tag_results: tagResults };
 
     try {
       const refreshed = await this.getEvent(event.id);
@@ -471,28 +472,45 @@ export class MispClient {
     );
 
     const attribute = data.Attribute;
-    if (!params.tags?.length || !attribute?.id) return attribute;
+    if (!params.tags?.length || !attribute) return attribute;
 
-    const tagResults = await this.applyCreationTags(params.tags, (tag) =>
-      this.request("POST", "/attributes/addTag", { attribute: attribute.id, tag })
+    const tagResults = await this.applyCreationTags(attribute.id, params.tags, (id, tag) =>
+      this.request("POST", "/attributes/addTag", { attribute: id, tag })
     );
-    return tagResults.failed.length ? { ...attribute, tag_results: tagResults } : attribute;
+    return tagResults.failed.length || tagResults.skipped.length
+      ? { ...attribute, tag_results: tagResults }
+      : attribute;
   }
 
   private async applyCreationTags(
+    id: string | undefined,
     tags: string[],
-    apply: (tag: string) => Promise<unknown>
+    apply: (id: string, tag: string) => Promise<unknown>
   ): Promise<CreationTagResults> {
+    const uniqueTags = [...new Set(tags)];
+    if (!id) {
+      return {
+        applied: [],
+        failed: [],
+        skipped: uniqueTags,
+        skipped_reason: "MISP did not return an ID for the created record.",
+      };
+    }
+
     const applied: string[] = [];
-    for (const tag of tags) {
+    for (const tag of uniqueTags) {
       try {
-        await apply(tag);
+        await apply(id, tag);
         applied.push(tag);
       } catch (err) {
         return {
           applied,
-          failed: [{ tag, error: this.redact(err instanceof Error ? err.message : String(err)) }],
-          skipped: tags.slice(applied.length + 1),
+          failed: [{
+            tag,
+            error: this.redact(err instanceof Error ? err.message : String(err)),
+            outcome: "unverified",
+          }],
+          skipped: uniqueTags.slice(applied.length + 1),
         };
       }
     }

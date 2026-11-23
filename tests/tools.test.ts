@@ -207,7 +207,7 @@ describe("Event Tools", () => {
         distribution: 0,
         threatLevel: 2,
         analysis: 0,
-        tags: ["tlp:amber"],
+        tags: ["tlp:amber", "tlp:amber"],
       })) as { content: Array<{ type: string; text: string }> };
 
       const data = JSON.parse(result.content[0].text);
@@ -215,6 +215,7 @@ describe("Event Tools", () => {
       expect(data.info).toBe(event.info);
       expect(data.tags).toEqual(["tlp:amber"]);
       expect(data).not.toHaveProperty("tag_results");
+      expect(requests).toHaveBeenCalledTimes(3);
       expect(requests.mock.lastCall?.[0]).toBe(`${mockConfig.url}/events/view/99`);
     });
 
@@ -245,9 +246,11 @@ describe("Event Tools", () => {
       if (failure === "tag") {
         expect(data.tag_results).toEqual({
           applied: ["first"],
-          failed: [{ tag: "second", error: expect.stringContaining("[REDACTED]") }],
+          failed: [{ tag: "second", error: expect.stringContaining("[REDACTED]"), outcome: "unverified" }],
           skipped: ["third"],
         });
+        expect(data).not.toHaveProperty("tags");
+        expect(data.warning).toContain("misp_tag_event");
         expect(requests.mock.calls.map(([url]) => new URL(String(url)).pathname)).toEqual([
           "/events/add", "/events/addTag", "/events/addTag",
         ]);
@@ -258,6 +261,23 @@ describe("Event Tools", () => {
         );
         expect(requests.mock.lastCall?.[0]).toBe(`${mockConfig.url}/events/view/99`);
       }
+    });
+
+    it("reports skipped tags when the created event has no ID", async () => {
+      const requests = vi.mocked(fetch).mockReset()
+        .mockImplementationOnce(mockFetchResponse({ Event: { uuid: "new-99", Tag: [] } }));
+      const result = (await handlers.get("misp_create_event")!({
+        info: "New event", distribution: 0, threatLevel: 2, analysis: 0, tags: ["first"],
+      })) as { content: Array<{ text: string }>; isError?: boolean };
+      expect(result.isError).toBeFalsy();
+      expect(JSON.parse(result.content[0].text)).toMatchObject({
+        uuid: "new-99",
+        warning: expect.stringContaining("Check MISP before retrying"),
+        tag_results: {
+          applied: [], failed: [], skipped: ["first"], skipped_reason: expect.stringContaining("ID"),
+        },
+      });
+      expect(requests).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -407,11 +427,15 @@ describe("Attribute Tools", () => {
       expect(requests.mock.lastCall?.[0]).toBe(`${mockConfig.url}/attributes/addTag`);
     });
 
-    it("preserves the created attribute and stops tagging after a failure", async () => {
+    it.each(["HTTP error", "timeout"])("preserves the created attribute after a tag %s", async (failure) => {
       const requests = vi.mocked(fetch).mockReset()
         .mockImplementationOnce(mockFetchResponse({ Attribute: { id: "300", event_id: "42" } }))
-        .mockImplementationOnce(mockFetchResponse({ saved: true }))
-        .mockImplementationOnce(mockFetchResponse({ message: `Failed: ${mockConfig.apiKey}` }, 403));
+        .mockImplementationOnce(mockFetchResponse({ saved: true }));
+      if (failure === "timeout") {
+        requests.mockRejectedValueOnce(Object.assign(new Error("aborted"), { name: "AbortError" }));
+      } else {
+        requests.mockImplementationOnce(mockFetchResponse({ message: `Failed: ${mockConfig.apiKey}` }, 403));
+      }
 
       const result = (await handlers.get("misp_add_attribute")!({
         eventId: "42", type: "domain", value: "test.example", tags: ["first", "second", "third"],
@@ -424,13 +448,35 @@ describe("Attribute Tools", () => {
         event_id: "42",
         tag_results: {
           applied: ["first"],
-          failed: [{ tag: "second", error: expect.stringContaining("[REDACTED]") }],
+          failed: [{
+            tag: "second",
+            error: expect.stringContaining(failure === "timeout" ? "timeout" : "[REDACTED]"),
+            outcome: "unverified",
+          }],
           skipped: ["third"],
         },
+        warning: expect.stringContaining("MISP UI"),
       });
       expect(requests.mock.calls.map(([url]) => new URL(String(url)).pathname)).toEqual([
         "/attributes/add/42", "/attributes/addTag", "/attributes/addTag",
       ]);
+    });
+
+    it("reports skipped tags when the created attribute has no ID", async () => {
+      const requests = vi.mocked(fetch).mockReset()
+        .mockImplementationOnce(mockFetchResponse({ Attribute: { event_id: "42", value: "test.example" } }));
+      const result = (await handlers.get("misp_add_attribute")!({
+        eventId: "42", type: "domain", value: "test.example", tags: ["first"],
+      })) as { content: Array<{ text: string }>; isError?: boolean };
+      expect(result.isError).toBeFalsy();
+      expect(JSON.parse(result.content[0].text)).toMatchObject({
+        event_id: "42",
+        warning: expect.stringContaining("Check MISP before retrying"),
+        tag_results: {
+          applied: [], failed: [], skipped: ["first"], skipped_reason: expect.stringContaining("ID"),
+        },
+      });
+      expect(requests).toHaveBeenCalledTimes(1);
     });
   });
 

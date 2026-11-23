@@ -85,7 +85,8 @@ describe("limit and page validation", () => {
     const schema = schemaOf(name);
     expect(schema.safeParse({ page: 1 }).success).toBe(true);
     expect(schema.safeParse({ page: 2 }).success).toBe(true);
-    for (const page of [0, -1, 1.5]) {
+    expect(schema.safeParse({ page: Number.MAX_SAFE_INTEGER }).success).toBe(true);
+    for (const page of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
       expect(schema.safeParse({ page }).success, `page ${page}`).toBe(false);
     }
   });

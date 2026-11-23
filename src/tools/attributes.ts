@@ -222,6 +222,13 @@ export function registerAttributeTools(
           distribution: params.distribution,
           tags: params.tags,
         });
+        const tagResults = attribute.tag_results;
+        let warning: string | undefined;
+        if (tagResults && (tagResults.failed.length || tagResults.skipped.length)) {
+          warning = attribute.id
+            ? "The attribute was created. Verify its tags and apply any missing tags to this attribute in the MISP UI."
+            : "MISP accepted the attribute creation but returned no attribute ID. Check MISP before retrying.";
+        }
 
         return {
           content: [
@@ -235,7 +242,8 @@ export function registerAttributeTools(
                   category: attribute.category,
                   value: attribute.value,
                   to_ids: attribute.to_ids,
-                  tag_results: attribute.tag_results,
+                  tag_results: tagResults,
+                  warning,
                 },
                 null,
                 2
