@@ -107,6 +107,7 @@ export function registerCorrelationTools(
         const attrCap = maxAttributes ?? 20;
         const matchLimit = perAttributeLimit ?? 100;
         const event = await client.getEvent(eventId);
+        const sourceEventId = String(event.id);
         const eventAttributes = event.Attribute || [];
 
         if (eventAttributes.length === 0) {
@@ -124,6 +125,7 @@ export function registerCorrelationTools(
         // Use event's RelatedEvent data if available
         if (event.RelatedEvent && event.RelatedEvent.length > 0) {
           for (const rel of event.RelatedEvent) {
+            if (String(rel.Event.id) === sourceEventId) continue;
             relatedMap.set(rel.Event.id, {
               event_id: rel.Event.id,
               event_info: rel.Event.info,
@@ -150,21 +152,20 @@ export function registerCorrelationTools(
           }
 
           for (const match of matches) {
-            if (match.event_id !== eventId) {
-              if (!relatedMap.has(match.event_id)) {
-                relatedMap.set(match.event_id, {
-                  event_id: match.event_id,
-                  event_info: match.Event?.info || "Unknown",
-                  overlapping_iocs: [],
-                  correlation_count: 0,
-                });
-              }
-              const entry = relatedMap.get(match.event_id)!;
-              if (!entry.overlapping_iocs.includes(value)) {
-                entry.overlapping_iocs.push(value);
-              }
-              entry.correlation_count++;
+            if (String(match.event_id) === sourceEventId) continue;
+            if (!relatedMap.has(match.event_id)) {
+              relatedMap.set(match.event_id, {
+                event_id: match.event_id,
+                event_info: match.Event?.info || "Unknown",
+                overlapping_iocs: [],
+                correlation_count: 0,
+              });
             }
+            const entry = relatedMap.get(match.event_id)!;
+            if (!entry.overlapping_iocs.includes(value)) {
+              entry.overlapping_iocs.push(value);
+            }
+            entry.correlation_count++;
           }
         }
 

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `misp_create_event` and `misp_add_attribute` return the created ID and tag outcomes if optional tagging fails. Event creation also reports a warning if the refresh after tagging fails.
+- `misp_get_related_events` excludes the source event from attribute matches and preloaded related events for both UUID and numeric lookups.
 
 ### Changed
 - `misp_search_events` and `misp_search_attributes` validate `limit` (integer 1-500) and `page` (integer from 1); `misp_search_attributes` gains `page`, sent in the `restSearch` body. When a page is full, the result ends with a note that more results may exist and names the next `page`. The `limit` on `misp_list_tags` and `misp_list_object_templates` and `distribution` (0-5, where 5 inherits the event setting) on attribute and object tools get the same integer bounds (#20).

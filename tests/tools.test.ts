@@ -641,6 +641,42 @@ describe("Correlation Tools", () => {
     });
   });
 
+  describe("misp_get_related_events", () => {
+    it.each(["evt-42", "42"])("excludes the source event when looked up as %s", async (eventId) => {
+      vi.mocked(fetch).mockReset()
+        .mockImplementationOnce(mockFetchResponse({
+          Event: {
+            id: "42",
+            info: "Source event",
+            Attribute: [{ value: "shared.example", to_ids: true }],
+            RelatedEvent: [
+              { Event: { id: 42, info: "Source event" } },
+              { Event: { id: "44", info: "Preloaded event" } },
+            ],
+          },
+        }))
+        .mockImplementationOnce(mockFetchResponse({
+          response: { Attribute: [
+            { event_id: 42, Event: { info: "Source event" } },
+            { event_id: "43", Event: { info: "Matching event" } },
+          ] },
+        }));
+
+      const result = (await handlers.get("misp_get_related_events")!({ eventId })) as {
+        content: Array<{ text: string }>;
+      };
+
+      expect(JSON.parse(result.content[0].text)).toMatchObject({
+        event_id: eventId,
+        total_related: 2,
+        related_events: [
+          { event_id: "43", correlation_count: 1 },
+          { event_id: "44", correlation_count: 0 },
+        ],
+      });
+    });
+  });
+
   describe("misp_describe_types", () => {
     it("should return type information", async () => {
       vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({
