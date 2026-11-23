@@ -192,49 +192,47 @@ describe("Event Tools", () => {
   });
 
   describe("misp_create_event", () => {
-    it("should create an event and return its details", async () => {
-      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({
-          Event: {
-            id: "99",
-            uuid: "new-99",
-            info: "New phishing campaign",
-            date: "2024-07-01",
-            threat_level_id: "2",
-            analysis: "0",
-            distribution: "0",
-            published: false,
-            timestamp: "1719792000",
-            publish_timestamp: "0",
-            attribute_count: "0",
-            Tag: [],
-          },
-        })
-      );
+    it("returns refreshed details when event tagging succeeds", async () => {
+      const event = { id: "99", info: "New event", Tag: [] };
+      const requests = vi.mocked(fetch).mockReset()
+        .mockImplementationOnce(mockFetchResponse({ Event: event }))
+        .mockImplementationOnce(mockFetchResponse({ saved: true }))
+        .mockImplementationOnce(mockFetchResponse({
+          Event: { ...event, Tag: [{ name: "tlp:amber" }] },
+        }));
 
       const handler = handlers.get("misp_create_event")!;
       const result = (await handler({
-        info: "New phishing campaign",
+        info: event.info,
         distribution: 0,
         threatLevel: 2,
         analysis: 0,
+        tags: ["tlp:amber"],
       })) as { content: Array<{ type: string; text: string }> };
 
       const data = JSON.parse(result.content[0].text);
       expect(data.id).toBe("99");
-      expect(data.info).toBe("New phishing campaign");
+      expect(data.info).toBe(event.info);
+      expect(data.tags).toEqual(["tlp:amber"]);
+      expect(data).not.toHaveProperty("tag_results");
+      expect(requests.mock.lastCall?.[0]).toBe(`${mockConfig.url}/events/view/99`);
     });
 
-    it.each(["tag", "refresh"])("preserves the created event when the %s request fails", async (failure) => {
+    it.each(["tag", "refresh", "refresh mismatch"])("preserves the created event after a %s failure", async (failure) => {
       const tags = ["first", "second", "third"];
       const requests = vi.mocked(fetch).mockReset()
         .mockImplementationOnce(mockFetchResponse({ Event: { id: "99", Tag: [] } }))
         .mockImplementationOnce(mockFetchResponse({ saved: true }));
-      if (failure === "refresh") {
+      if (failure !== "tag") {
         requests
           .mockImplementationOnce(mockFetchResponse({ saved: true }))
           .mockImplementationOnce(mockFetchResponse({ saved: true }));
       }
-      requests.mockImplementationOnce(mockFetchResponse({ message: `Failed: ${mockConfig.apiKey}` }, 403));
+      if (failure === "refresh mismatch") {
+        requests.mockImplementationOnce(mockFetchResponse({ Event: { id: "100", Tag: [] } }));
+      } else {
+        requests.mockImplementationOnce(mockFetchResponse({ message: `Failed: ${mockConfig.apiKey}` }, 403));
+      }
 
       const result = (await handlers.get("misp_create_event")!({
         info: "New event", distribution: 0, threatLevel: 2, analysis: 0, tags,
@@ -255,7 +253,9 @@ describe("Event Tools", () => {
         ]);
       } else {
         expect(data.tag_results).toMatchObject({ applied: tags, failed: [], skipped: [] });
-        expect(data.tag_results.refresh_warning).toMatch(/refresh.*\[REDACTED\]/i);
+        expect(data.tag_results.refresh_warning).toMatch(
+          failure === "refresh" ? /refresh.*\[REDACTED\]/i : /did not return the created event/,
+        );
         expect(requests.mock.lastCall?.[0]).toBe(`${mockConfig.url}/events/view/99`);
       }
     });
@@ -373,8 +373,8 @@ describe("Attribute Tools", () => {
   });
 
   describe("misp_add_attribute", () => {
-    it("should add an attribute and return details", async () => {
-      vi.mocked(fetch).mockReset().mockImplementation(mockFetchResponse({
+    it("returns attribute details when tagging succeeds", async () => {
+      const requests = vi.mocked(fetch).mockReset().mockImplementationOnce(mockFetchResponse({
           Attribute: {
             id: "300",
             event_id: "42",
@@ -388,8 +388,7 @@ describe("Attribute Tools", () => {
             comment: "C2 domain",
             deleted: false,
           },
-        })
-      );
+        })).mockImplementationOnce(mockFetchResponse({ saved: true }));
 
       const handler = handlers.get("misp_add_attribute")!;
       const result = (await handler({
@@ -397,12 +396,15 @@ describe("Attribute Tools", () => {
         type: "domain",
         value: "evil.com",
         comment: "C2 domain",
+        tags: ["tlp:amber"],
       })) as { content: Array<{ type: string; text: string }> };
 
       const data = JSON.parse(result.content[0].text);
       expect(data.id).toBe("300");
       expect(data.value).toBe("evil.com");
       expect(data.type).toBe("domain");
+      expect(data).not.toHaveProperty("tag_results");
+      expect(requests.mock.lastCall?.[0]).toBe(`${mockConfig.url}/attributes/addTag`);
     });
 
     it("preserves the created attribute and stops tagging after a failure", async () => {
@@ -642,6 +644,36 @@ describe("Correlation Tools", () => {
   });
 
   describe("misp_get_related_events", () => {
+    it("merges numeric and string IDs and counts every match for repeated values", async () => {
+      const requests = vi.mocked(fetch).mockReset()
+        .mockImplementationOnce(mockFetchResponse({
+          Event: {
+            id: "42",
+            info: "Source event",
+            Attribute: Array.from({ length: 2 }, () => ({ value: "shared.example", to_ids: true })),
+            RelatedEvent: [{ Event: { id: 44, info: "Preloaded event" } }],
+          },
+        }))
+        .mockImplementationOnce(mockFetchResponse({
+          response: { Attribute: [{ event_id: "44" }, { event_id: 44 }] },
+        }));
+
+      const result = (await handlers.get("misp_get_related_events")!({ eventId: "42" })) as {
+        content: Array<{ text: string }>;
+      };
+
+      expect(JSON.parse(result.content[0].text)).toMatchObject({
+        total_related: 1,
+        related_events: [{
+          event_id: "44",
+          event_info: "Preloaded event",
+          correlation_count: 4,
+          overlapping_iocs: ["shared.example"],
+        }],
+      });
+      expect(requests).toHaveBeenCalledTimes(2);
+    });
+
     it.each(["evt-42", "42"])("excludes the source event when looked up as %s", async (eventId) => {
       vi.mocked(fetch).mockReset()
         .mockImplementationOnce(mockFetchResponse({

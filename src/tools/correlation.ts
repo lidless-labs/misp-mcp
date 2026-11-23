@@ -125,9 +125,10 @@ export function registerCorrelationTools(
         // Use event's RelatedEvent data if available
         if (event.RelatedEvent && event.RelatedEvent.length > 0) {
           for (const rel of event.RelatedEvent) {
-            if (String(rel.Event.id) === sourceEventId) continue;
-            relatedMap.set(rel.Event.id, {
-              event_id: rel.Event.id,
+            const relatedId = String(rel.Event.id);
+            if (relatedId === sourceEventId) continue;
+            relatedMap.set(relatedId, {
+              event_id: relatedId,
               event_info: rel.Event.info,
               overlapping_iocs: [],
               correlation_count: 0,
@@ -154,16 +155,17 @@ export function registerCorrelationTools(
 
           // Each source attribute still contributes its matches to the counts.
           for (const match of matches) {
-            if (String(match.event_id) === sourceEventId) continue;
-            if (!relatedMap.has(match.event_id)) {
-              relatedMap.set(match.event_id, {
-                event_id: match.event_id,
+            const relatedId = String(match.event_id);
+            if (relatedId === sourceEventId) continue;
+            if (!relatedMap.has(relatedId)) {
+              relatedMap.set(relatedId, {
+                event_id: relatedId,
                 event_info: match.Event?.info || "Unknown",
                 overlapping_iocs: [],
                 correlation_count: 0,
               });
             }
-            const entry = relatedMap.get(match.event_id)!;
+            const entry = relatedMap.get(relatedId)!;
             if (!entry.overlapping_iocs.includes(value)) {
               entry.overlapping_iocs.push(value);
             }
