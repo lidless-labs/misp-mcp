@@ -41,13 +41,17 @@ export function pageInput(description = "Page number for pagination (starts at 1
 }
 
 /**
- * Trailing note for a search result, or undefined when the page was not full.
- * A full page means more results may exist.
+ * Trailing hint for a nonempty page with a representable next page.
+ * MISP may cap the page size below the requested limit.
  */
 export function moreResultsNote(returned: number, limit: number | undefined, page: number | undefined): string | undefined {
-  const effectiveLimit = limit ?? DEFAULT_SEARCH_LIMIT;
-  if (returned < effectiveLimit) return undefined;
   const nextPage = (page ?? 1) + 1;
+  if (returned === 0 || !Number.isSafeInteger(nextPage)) return undefined;
+
+  const requestedLimit = limit ?? DEFAULT_SEARCH_LIMIT;
+  if (returned < requestedLimit) {
+    return `Note: this page returned ${returned} of up to ${requestedLimit} requested results. MISP may have applied a lower limit. To check for more results, call again with page: ${nextPage}.`;
+  }
   return `Note: this page returned ${returned} results (the limit), so more results may exist. Call again with page: ${nextPage} to continue.`;
 }
 

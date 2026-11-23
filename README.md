@@ -142,7 +142,7 @@ Event titles, comments, IOC values, tags, export bodies, and similar fields are 
 
 - Responses are read through a strict byte cap (`MISP_MAX_RESPONSE_BYTES`) and the request timeout stays active until the body is fully read.
 - `misp_add_attributes_bulk` takes at most 100 attributes and stops after five consecutive failures; the result lists succeeded, failed, and skipped items and warns about partial updates.
-- Search tools take an integer `limit` from 1 to 500 and an integer `page` from 1; fractional, zero, negative, and oversized values are rejected. When a page comes back full, the result ends with a note that more results may exist and names the next `page`.
+- Event and attribute searches take an integer `limit` from 1 to 500 and an integer `page` from 1 through the largest safe integer. Nonempty pages suggest checking the next page when one can be requested. MISP may apply a lower limit, so a short page can still have a continuation.
 - `misp_get_related_events` accepts `maxAttributes` up to 50 and `perAttributeLimit` up to 500. Tag lists are capped at 20 and object attribute lists at 100.
 - Upstream error bodies are not returned to the model. Errors carry the status class, and for 4xx responses a short, redacted `message` field. The API key is redacted from every error.
 
@@ -156,7 +156,7 @@ Verified against the server source (42 tools, registered in `src/tools/`).
 
 | Tool | Description |
 |------|-------------|
-| `misp_search_events` | Search events by IOC value, type, tags, date range, organization. `limit` 1-500, `page` from 1; a full page adds a note naming the next page |
+| `misp_search_events` | Search events by IOC value, type, tags, date range, organization. `limit` 1-500, `page` from 1 |
 | `misp_get_event` | Get full event details including attributes, objects, galaxies, related events |
 | `misp_create_event` | Create a new event with threat level, distribution, and analysis status |
 | `misp_update_event` | Update event metadata (info, threat level, analysis, publish state) |
@@ -175,7 +175,7 @@ Verified against the server source (42 tools, registered in `src/tools/`).
 
 | Tool | Description |
 |------|-------------|
-| `misp_search_attributes` | Search IOCs across all events with type, category, and correlation filters. `limit` 1-500, `page` from 1; a full page adds a note naming the next page |
+| `misp_search_attributes` | Search IOCs across all events with type, category, and correlation filters. `limit` 1-500, `page` from 1 |
 | `misp_get_attribute` | Get one attribute by ID with its tags |
 | `misp_update_attribute` | Edit an attribute in place (`value`, `type`, `category`, `toIds`, `comment`, `disableCorrelation`, `distribution`); at least one field required, no `confirm` flag, runs only when enabled in `MISP_ALLOWED_MUTATIONS` |
 | `misp_add_attribute` | Add a single IOC to an event |
